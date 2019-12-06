@@ -1,0 +1,79 @@
+define token instr(32)
+	iI   = (27, 31) # opcode
+	iA   = (21, 26) # destination reg
+	iA_alias = (21, 26)
+	iB   = (15, 20) # op 1 address
+	iB_alias = (15, 20)
+	iC   = (9, 14) # op 2 address
+	iC_alias   = (9, 14)
+	iF   = (8, 8) # flags set field
+	iR   = (7, 7) # reserved, must be 0
+	iN   = (5, 6) # jump/call nullify instruction mode
+	iQ   = (0, 4) # condition flags
+	iD   = (0, 8); # short immediate data
+define token limm_token(32)
+       limm32_field = (0,31);
+
+attach variables [ iA iB iC ] [
+       r0  r1  r2  r3  r4  r5  r6  r7  r8  r9  r10 r11 r12 r13 r14
+       r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 fp sp
+       ilink1 ilink2 blink
+       ext0  ext1  ext2  ext3  ext4  ext5  ext6  ext7  ext8  ext9  ext10 ext11 ext12 ext13 ext14
+       ext15 ext16 ext17 ext18 ext19 ext20 ext21 ext22 ext23 ext24 ext25 ext26 ext27 lp_count
+       shimmflags limm shimmnoflags
+];
+
+# p.61 of ARC Ref. regs 61-63 reserved for encoding immediate data
+
+# 61 - Short immediate data indicator setting
+#      flags
+# 62 - Long immediate data indicator
+# 63 - Short immediate data indicator not setting
+#      flags
+
+shimm9_A: "0" is iA { export *[const]:$(SIZE) iA; }
+shimm9:  ""^iD is iD { export *[const]:$(SIZE) iD; }
+limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field; }
+
+#allimmediate:   is iA=60 & iB<61 & iC<61 {}
+#allimmediate:   is iA=62 & iB<61 & iC<61 & limm32_field { tmp=limm32_field; }
+
+opA1: iA is iA_alias<61 & iA { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) iA; } # normal register operand
+opA1: "0" is iA_alias=61 & iA { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) iA; } # short immediate with flags set
+opA1: "0" is iA_alias>61 & iA { limm_flag:1=0; set_flags:1=0; export *[const]:$(SIZE) iA; } # short immediate without flags set or long immediate flags?
+
+opB1: iB is iB_alias<61 & iB { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) iB; } # normal register operand
+opB1: iD is iB=61 & iD { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) iD; } # short immediate with flags set
+opB1: iD is iB=63 & iD { limm_flag:1=0; set_flags:1=0; export *[const]:$(SIZE) iD; } # short immediate without flags set
+opB1: limm32_field is iB_alias=62 & iB_alias; limm32_field { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) limm32_field; } # long immediate
+
+opC1: iC is iC_alias<61 & iC { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) iC; } # normal register operand
+opC1: iD is iC=61 & iD { limm_flag:1=0; set_flags:1=1; export *[const]:$(SIZE) iD; } # short immediate with flags set
+opC1: iD is iC=63 & iD { limm_flag:1=0; set_flags:1=0; export *[const]:$(SIZE) iD; } # short immediate without flags set
+opC1: limm32_field is iC=62; limm32_field { limm_flag:1=1; set_flags:1=1; export *[const]:$(SIZE) limm32_field; } # long immediate
+
+#op1: "x" is iA=61 & iD { export *[const]:$(SIZE) iD; }
+
+# p. 93 of ARC Ref
+#iA_flags: iA^".f" is iA
+# :add.f shimm9_A, iB, iC is iI=0x8 & iA>60 & iF=1 & shimm9_A & iB & iC { }
+# :add   shimm9_A, iB, iC is iI=0x8 & iA>60 & iF=0 & shimm9_A & iB & iC { }
+# :add   iA, iB, limm32 is iI=0x8 & iC=62 & iA & iB; limm32 { }
+# :add   iA, iB, shimm9 is iI=0x8 & iC=63 & iA & iB & shimm9 { }
+# :add.f  iA, iB, shimm9 is iI=0x8 & iC=61 & iA & iB & shimm9 { }
+# :add   iA, iB, iC is iI=0x8 & iA & iB & iC { }
+
+# :add opA1, iB, iC is iI=0x8 & opA1 & iB & iC
+# {
+# }
+
+:add opA1, opB1, opC1 is iI=0x8 ... & opA1 ... & opB1 & opC1
+{
+}
+
+#:fnord opA1 is iI=0x3 & opA1
+#{
+#}
+
+# :sub  iA, iB, shimm9 is iI=0xA & iC=0x3F & iA & iB & shimm9 { }
+# :sub  iA, iB, iC is iI=0xA & iA & iB & iC { }
