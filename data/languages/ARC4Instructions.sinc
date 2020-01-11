@@ -57,32 +57,30 @@ opC1: iD is iC=61 & iD {export *[const]:$(SIZE) iD; } # short immediate with fla
 opC1: iD is iC=63 & iD {export *[const]:$(SIZE) iD; } # short immediate without flags set
 opC1: limm32_field is iC=62; limm32_field {export *[const]:$(SIZE) limm32_field; } # long immediate
 
+cc: ".AL" is iQ=0 { export 1:1; }
+cc: ".EQ" is iQ=1 { export Z; }
+cc: ".NE" is iQ=2 { tmp:1 = !Z; export tmp; }
+cc: ".PL" is iQ=3 { tmp:1 = !N; export tmp; }
+cc: ".MI" is iQ=4 { export N; }
+cc: ".CS" is iQ=5 { export C; }
+cc: ".CC" is iQ=6 { tmp:1 = !C; export tmp; }
+cc: ".VS" is iQ=7 { export V; }
+cc: ".VC" is iQ=8 { tmp:1 = !V; export tmp; }
+cc: ".GT" is iQ=9 { tmp:1 = (!Z) && (N==V); export tmp; }
+cc: ".GE" is iQ=10 { tmp:1 = (N==V); export tmp; }
+cc: ".LT" is iQ=11 { tmp:1 = (N!=V); export tmp; }
+cc: ".LE" is iQ=12 { tmp:1 = Z || (N!=V); export tmp; }
+cc: ".HI" is iQ=13 { tmp:1 = C && (!Z); export tmp; }
+cc: ".LS" is iQ=14 { tmp:1 = (!C) || Z; export tmp; }
+cc: ".PNZ" is iQ=15 { tmp:1 = (!Z) && (!N); export tmp; }
 
-cc: "" is (iC=61 | iC=63 | iB=61 | iB=63) { export 1:1; }
-#cc: "."^iQ^".F" is (iC<61 | iC=62 | i<61 | iB=62) & iF=1 & iQ { export iQ; }
-#cc: "."^iQ is (iC<61 | iC=62 | iB<61 | iB=62) & iF=0 & iQ { export iQ; }
+COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; }
+# Always execute
+COND: "" is (iC=61 | iC=63 | iB=61 | iB=63) { }
 
-cc: ".AL" is iQ=0 & (iC<61 | iC=62 | iB<61 | iB=62) { export 1:1; }
-cc: ".EQ" is iQ=1 & (iC<61 | iC=62 | iB<61 | iB=62) { export Z; }
-cc: ".NE" is iQ=2 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !Z; export tmp; }
-cc: ".PL" is iQ=3 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !N; export tmp; }
-cc: ".MI" is iQ=4 & (iC<61 | iC=62 | iB<61 | iB=62) { export N; }
-cc: ".CS" is iQ=5 & (iC<61 | iC=62 | iB<61 | iB=62) { export C; }
-cc: ".CC" is iQ=6 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !C; export tmp; }
-cc: ".VS" is iQ=7 & (iC<61 | iC=62 | iB<61 | iB=62) { export V; }
-cc: ".VC" is iQ=8 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !V; export tmp; }
-cc: ".GT" is iQ=9 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (!Z) && (N==V); export tmp; }
-cc: ".GE" is iQ=10 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (N==V); export tmp; }
-cc: ".LT" is iQ=11 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (N!=V); export tmp; }
-cc: ".LE" is iQ=12 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = Z || (N!=V); export tmp; }
-cc: ".HI" is iQ=13 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = C && (!Z); export tmp; }
-cc: ".LS" is iQ=14 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (!C) || Z; export tmp; }
-cc: ".PNZ" is iQ=15 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (!Z) && (!N); export tmp; }
-
-COND: cc is cc { if (!cc) goto inst_next; }
-
-FLAGS: ".F" is iF=1 { }
-FLAGS: "" is iF=0 { }
+FLAGS: ".F" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
+FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
+FLAGS: ""   is (iC=61 | iC=63 | iB=61 | iB=63) { }
 
 macro subflags(op1,op2) {
  tmpC = op2 <= op1;
@@ -112,14 +110,14 @@ macro resultflags(result) {
 # {
 # }
 
-:add^COND opA1, opB1, opC1 is COND ... & iI=0x8 ... & opA1 ... & opB1 & opC1
+:add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 + opC1;
-	teh_result = opA1;
+	#teh_result = opA1;
 	#build FLAGS;
 }
 
-:sub^COND  opA1, opB1, opC1 is COND ... & iI=0xA ... & opA1 ... & opB1 & opC1
+:sub^COND^FLAGS  opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xA ... & opA1 ... & opB1 & opC1
 {
 }
