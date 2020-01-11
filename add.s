@@ -1,6 +1,3 @@
-.ORG 0x100
-
-
 	add r1,r2,32
 	add r3,r4,32
 	add r5,r6,32

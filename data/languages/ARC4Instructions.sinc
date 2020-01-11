@@ -43,27 +43,65 @@ limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field;
 #allimmediate:   is iA=60 & iB<61 & iC<61 {}
 #allimmediate:   is iA=62 & iB<61 & iC<61 & limm32_field { tmp=limm32_field; }
 
-opA1: iA is iA_alias<61 & iA {export *[const]:$(SIZE) iA; } # normal register operand
-opA1: "0" is iA_alias=61 & iA {export *[const]:$(SIZE) iA; } # short immediate with flags set
-opA1: "0" is iA_alias>61 & iA {export *[const]:$(SIZE) iA; } # short immediate without flags set or long immediate flags?
+opA1: iA is iA_alias<61 & iA {export iA; } # normal register operand
+opA1: "0" is iA_alias=61 & iA {export iA; } # short immediate with flags set
+opA1: "0" is iA_alias>61 & iA {export iA; } # short immediate without flags set or long immediate flags?
 
-opB1: iB is iB_alias<61 & iB {export *[const]:$(SIZE) iB; } # normal register operand
+opB1: iB is iB_alias<61 & iB {export iB; } # normal register operand
 opB1: iD is iB=61 & iD {export *[const]:$(SIZE) iD; } # short immediate with flags set
 opB1: iD is iB=63 & iD {export *[const]:$(SIZE) iD; } # short immediate without flags set
 opB1: limm32_field is iB_alias=62 & iB_alias; limm32_field {export *[const]:$(SIZE) limm32_field; } # long immediate
 
-opC1: iC is iC_alias<61 & iC {export *[const]:$(SIZE) iC; } # normal register operand
+opC1: iC is iC_alias<61 & iC {export iC; } # normal register operand
 opC1: iD is iC=61 & iD {export *[const]:$(SIZE) iD; } # short immediate with flags set
 opC1: iD is iC=63 & iD {export *[const]:$(SIZE) iD; } # short immediate without flags set
 opC1: limm32_field is iC=62; limm32_field {export *[const]:$(SIZE) limm32_field; } # long immediate
 
-cond: "" is (iC=61 | iC=63 | iB=61 | iB=63) {}
-cond: "."^iQ^".F" is (iC<61 | iC=62 | iB<61 | iB=62) & iF=1 & iQ {}
-cond: "."^iQ is (iC<61 | iC=62 | iB<61 | iB=62) & iF=0 & iQ {}
+
+cc: "" is (iC=61 | iC=63 | iB=61 | iB=63) { export 1:1; }
+#cc: "."^iQ^".F" is (iC<61 | iC=62 | i<61 | iB=62) & iF=1 & iQ { export iQ; }
+#cc: "."^iQ is (iC<61 | iC=62 | iB<61 | iB=62) & iF=0 & iQ { export iQ; }
+
+cc: ".AL" is iQ=0 & (iC<61 | iC=62 | iB<61 | iB=62) { export 1:1; }
+cc: ".EQ" is iQ=1 & (iC<61 | iC=62 | iB<61 | iB=62) { export Z; }
+cc: ".NE" is iQ=2 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !Z; export tmp; }
+cc: ".PL" is iQ=3 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !N; export tmp; }
+cc: ".MI" is iQ=4 & (iC<61 | iC=62 | iB<61 | iB=62) { export N; }
+cc: ".CS" is iQ=5 & (iC<61 | iC=62 | iB<61 | iB=62) { export C; }
+cc: ".CC" is iQ=6 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !C; export tmp; }
+cc: ".VS" is iQ=7 & (iC<61 | iC=62 | iB<61 | iB=62) { export V; }
+cc: ".VC" is iQ=8 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = !V; export tmp; }
+cc: ".GT" is iQ=9 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (!Z) && (N==V); export tmp; }
+cc: ".GE" is iQ=10 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (N==V); export tmp; }
+cc: ".LT" is iQ=11 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (N!=V); export tmp; }
+cc: ".LE" is iQ=12 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = Z || (N!=V); export tmp; }
+cc: ".HI" is iQ=13 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = C && (!Z); export tmp; }
+cc: ".LS" is iQ=14 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (!C) || Z; export tmp; }
+cc: ".PNZ" is iQ=15 & (iC<61 | iC=62 | iB<61 | iB=62) { tmp:1 = (!Z) && (!N); export tmp; }
+
+COND: cc is cc { if (!cc) goto inst_next; }
+
+FLAGS: ".F" is iF=1 { }
+FLAGS: "" is iF=0 { }
+
+macro subflags(op1,op2) {
+ tmpC = op2 <= op1;
+ tmpV = sborrow(op1,op2);
+}
+
+# macro logicflags() {
+#   tmpCY = shift_carry;
+#   tmpOV = OV;
+# }
+
+macro resultflags(result) {
+ tmpN = result s< 0;
+ tmpZ = result == 0;
+}
 
 # p. 93 of ARC Ref
 #iA_flags: iA^".f" is iA
-# :add.f shimm9_A, iB, iC is iI=0x8 & iA>60 & iF=1 & shimm9_A & iB & iC { }
+# :add.f shimm9_A, iB, i	C is iI=0x8 & iA>60 & iF=1 & shimm9_A & iB & iC { }
 # :add   shimm9_A, iB, iC is iI=0x8 & iA>60 & iF=0 & shimm9_A & iB & iC { }
 # :add   iA, iB, limm32 is iI=0x8 & iC=62 & iA & iB; limm32 { }
 # :add   iA, iB, shimm9 is iI=0x8 & iC=63 & iA & iB & shimm9 { }
@@ -74,11 +112,14 @@ cond: "."^iQ is (iC<61 | iC=62 | iB<61 | iB=62) & iF=0 & iQ {}
 # {
 # }
 
-:add^cond opA1, opB1, opC1 is cond ... & iI=0x8 ... & opA1 ... & opB1 & opC1
+:add^COND opA1, opB1, opC1 is COND ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
+	build COND;
+	opA1 = opB1 + opC1;
+	teh_result = opA1;
+	#build FLAGS;
 }
 
-
-:sub^cond  opA1, opB1, opC1 is cond ... & iI=0xA ... & opA1 ... & opB1 & opC1
+:sub^COND  opA1, opB1, opC1 is COND ... & iI=0xA ... & opA1 ... & opB1 & opC1
 {
 }
