@@ -40,9 +40,6 @@ shimm9_A: "0" is iA { export *[const]:$(SIZE) iA; }
 shimm9:  ""^iD is iD { export *[const]:$(SIZE) iD; }
 limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field; }
 
-#allimmediate:   is iA=60 & iB<61 & iC<61 {}
-#allimmediate:   is iA=62 & iB<61 & iC<61 & limm32_field { tmp=limm32_field; }
-
 opA1: iA is iA_alias<61 & iA {export iA; } # normal register operand
 opA1: "0" is iA_alias=61 & iA {export iA; } # short immediate with flags set
 opA1: "0" is iA_alias>61 & iA {export iA; } # short immediate without flags set or long immediate flags?
@@ -76,11 +73,11 @@ cc: ".PNZ" is iQ=15 { tmp:1 = (!Z) && (!N); export tmp; }
 
 COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; }
 # Always execute
-COND: "" is (iC=61 | iC=63 | iB=61 | iB=63) { }
+COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
 FLAGS: ".F" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
-FLAGS: ""   is (iC=61 | iC=63 | iB=61 | iB=63) { }
+FLAGS: ""   is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
 macro subflags(op1,op2) {
  tmpC = op2 <= op1;
@@ -98,26 +95,34 @@ macro resultflags(result) {
 }
 
 # p. 93 of ARC Ref
-#iA_flags: iA^".f" is iA
-# :add.f shimm9_A, iB, i	C is iI=0x8 & iA>60 & iF=1 & shimm9_A & iB & iC { }
-# :add   shimm9_A, iB, iC is iI=0x8 & iA>60 & iF=0 & shimm9_A & iB & iC { }
-# :add   iA, iB, limm32 is iI=0x8 & iC=62 & iA & iB; limm32 { }
-# :add   iA, iB, shimm9 is iI=0x8 & iC=63 & iA & iB & shimm9 { }
-# :add.f  iA, iB, shimm9 is iI=0x8 & iC=61 & iA & iB & shimm9 { }
-# :add   iA, iB, iC is iI=0x8 & iA & iB & iC { }
-
-# :add opA1, iB, iC is iI=0x8 & opA1 & iB & iC
-# {
-# }
-
 :add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 + opC1;
-	#teh_result = opA1;
-	#build FLAGS;
+	# result = opA1;
+	# resultflags(result);
+	# logicflags();
+	# build FLAGS;
 }
 
-:sub^COND^FLAGS  opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xA ... & opA1 ... & opB1 & opC1
+:sub^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xA ... & opA1 ... & opB1 & opC1
 {
+	build COND;
+	opA1 = opB1 - opC1;
+}
+
+:nop^COND^FLAGS is COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
+{
+}
+
+:j^" blink" is iQ=0x0 & iI=0x7 & iA=0 & iB=0x1F & iC=0 & iF=0 #not handling set flags see instruction manual
+{
+	pc = blink;
+	return [pc];
+}
+
+:j^COND opB1 is COND ... & iI=0x7 ... & iA=0 ... & opB1 & iC=0 ... & iF=0 ...  #not handling set flags see instruction manual
+{
+	pc = opB1;
+	goto [pc];
 }

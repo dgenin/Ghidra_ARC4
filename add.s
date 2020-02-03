@@ -1,3 +1,12 @@
+	add r2, 0, 0
+	add r3, 1, 1
+	add r4, 2, 2
+	add r6, 3, 3
+	add r0, r1, r5
+	nop
+	add ilink1, 4, 4
+	add blink, 5, 5
+	add sp, 6, 6
 	add r1,r2,32
 	add r3,r4,32
 	add r5,r6,32
