@@ -30,6 +30,6 @@ define register offset=0x1000 size=$(SIZE) [
 # V - OVERFLOW
 
 define register offset=0x1100 size=1 [
-       Z   N  C   V
+       Z   N  C  V tmpZ tmpN tmpC tmpV
 ];
 

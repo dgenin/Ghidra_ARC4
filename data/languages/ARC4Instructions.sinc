@@ -41,8 +41,8 @@ shimm9:  ""^iD is iD { export *[const]:$(SIZE) iD; }
 limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field; }
 
 opA1: iA is iA_alias<61 & iA {export iA; } # normal register operand
-opA1: "0" is iA_alias=61 & iA {export iA; } # short immediate with flags set
-opA1: "0" is iA_alias>61 & iA {export iA; } # short immediate without flags set or long immediate flags?
+opA1: "0" is iA_alias=61 & iA { export iA; } # short immediate with flags set
+opA1: "0" is iA_alias>61 & iA { export iA; } # short immediate without flags set or long immediate flags?
 
 opB1: iB is iB_alias<61 & iB {export iB; } # normal register operand
 opB1: iD is iB=61 & iD {export *[const]:$(SIZE) iD; } # short immediate with flags set
@@ -75,18 +75,9 @@ COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; 
 # Always execute
 COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
-FLAGS: ".F" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
-FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
-FLAGS: ""   is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
-
-macro subflags(op1,op2) {
- tmpC = op2 <= op1;
- tmpV = sborrow(op1,op2);
-}
-
 # macro logicflags() {
-#   tmpCY = shift_carry;
-#   tmpOV = OV;
+#   tmpC = shift_carry;
+#   tmpV = V;
 # }
 
 macro resultflags(result) {
@@ -94,21 +85,44 @@ macro resultflags(result) {
  tmpZ = result == 0;
 }
 
+macro addflags(op1,op2) {
+ tmpC = carry(op1,op2);
+ tmpV = scarry(op1,op2);
+}
+
+# NOTE:  unlike x86,  carry flag is SET if there is NO borrow
+macro subflags(op1,op2) {
+ tmpC = op2 <= op1;
+ tmpV = sborrow(op1,op2);
+}
+
+FLAGS: ".F" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
+FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
+#FLAGS: ".F" is (iC=61 & iB=61) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
+FLAGS: ".F" is (iC<63 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
+#FLAGS: ".F" is (iC=61 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; } 
+FLAGS: ""   is (iC=63 | iB=63) { }
+
 # p. 93 of ARC Ref
 :add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 + opC1;
-	# result = opA1;
-	# resultflags(result);
+	local result = opA1;
+	resultflags(result);
+	addflags(opB1, opC1);
 	# logicflags();
-	# build FLAGS;
+	build FLAGS;
 }
 
 :sub^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xA ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 - opC1;
+	local result = opA1;
+	resultflags(result);
+	subflags(opB1, opC1);
+	build FLAGS;
 }
 
 :nop^COND^FLAGS is COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
