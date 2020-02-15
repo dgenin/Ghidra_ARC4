@@ -115,6 +115,17 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	build FLAGS;
 }
 
+:adc^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x9 ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 + opC1 + zext(C);
+	local result = opA1;
+	resultflags(result);
+	addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
 :sub^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xA ... & opA1 ... & opB1 & opC1
 {
 	build COND;
@@ -122,6 +133,76 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	subflags(opB1, opC1);
+	build FLAGS;
+}
+
+:sbc^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xB ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 - opC1 - zext(C);
+	local result = opA1;
+	resultflags(result);
+	subflags(opB1, opC1);
+	build FLAGS;
+}
+
+:and^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xC ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 & opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+:or^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xD ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 | opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+:xor^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xF ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 ^ opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+:asl^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x10 ... & iB=iC ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	local tmp = (opB1 & 0x80000000) >> 31;
+	tmpC = tmp:1;
+	opA1 = opB1 << 1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+# TODO: implement correct semantics spec
+:lsl^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x11 ... & iB=iC ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	local tmp = (opB1 & 0x80000000) >> 31;
+	tmpC = tmp:1;
+	opA1 = opB1 << 1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
 	build FLAGS;
 }
 
