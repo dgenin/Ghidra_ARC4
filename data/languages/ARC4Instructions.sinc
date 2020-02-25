@@ -1,11 +1,16 @@
 define token instr(32)
-	iI   = (27, 31) # opcode
-	iA   = (21, 26) # destination reg
-	iA_alias = (21, 26)
-	iB   = (15, 20) # op 1 address
+	iI    = (27, 31) # opcode
+	iA    = (21, 26) # destination reg
+	iA_alias = (21, 26) # necessary because iA cannot occur as both parameter and constraint at once
+	iB    = (15, 20) # op 1 address
 	iB_alias = (15, 20)
-	iC   = (9, 14) # op 2 address
+	iC    = (9, 14) # op 2 address
 	iC_alias   = (9, 14)
+	iLD0       = (13, 13)
+	iDi   = (14, 14)  # direct (cache bypass)
+	iAddr = (12, 12) # address write-back enable (see ARC Ref. p. 99)
+	iZ   = (10, 11) # size field used by LD
+	iX   = (9, 9)        # sign extend field
 	iF   = (8, 8) # flags set field
 	iR   = (7, 7) # reserved, must be 0
 	iN   = (5, 6) # jump/call nullify instruction mode
@@ -56,7 +61,7 @@ opC1: limm32_field is iC=62; limm32_field {export *[const]:$(SIZE) limm32_field;
 
 cc: ".AL" is iQ=0 { export 1:1; }
 cc: ".EQ" is iQ=1 { export Z; }
-cc: ".NE" is iQ=2 { tmp:1 = !Z; export tmp; }
+cc: ".N	  E" is iQ=2 { tmp:1 = !Z; export tmp; }
 cc: ".PL" is iQ=3 { tmp:1 = !N; export tmp; }
 cc: ".MI" is iQ=4 { export N; }
 cc: ".CS" is iQ=5 { export C; }
@@ -104,6 +109,31 @@ FLAGS: ".F" is (iC<63 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
 FLAGS: ""   is (iC=63 | iB=63) { }
 
 # p. 93 of ARC Ref
+# TODO: implement size, write-back and cache bypass and sign extend
+:ld^FLAGS opA1, "["^opB1, iD^"]" is COND ... & FLAGS ... & iI=0x1 ... & opA1 ... & opB1 & iD ...
+{
+	local addr = opB1 + iD;
+	result = *:4 addr;
+	resultflags(result);
+	build FLAGS;
+}
+
+:ldb^FLAGS opA1, "["^opB1, iD^"]" is COND ... & FLAGS ... & (iI=0x1 & iZ=0x1 & iLD0=0) ... & opA1 ... & opB1 & iD ...
+{
+	local addr = opB1 + iD;
+	result = *:1 addr;
+	resultflags(result);
+	build FLAGS;
+}
+
+:ldw^FLAGS opA1, "["^opB1, iD^"]" is COND ... & FLAGS ... & (iI=0x1 & iZ=0x2)  ... & opA1 ... & opB1 & iD ...
+{
+	local addr = opB1 + iD;
+	result = *:2 addr;
+	resultflags(result);
+	build FLAGS;
+}
+
 :add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
