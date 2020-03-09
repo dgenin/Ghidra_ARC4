@@ -1,15 +1,20 @@
 define token instr(32)
 	iI    = (27, 31) # opcode
 	iA    = (21, 26) # destination reg
+	iBL_L = (7,26) signed  # destination address divided by 4
+	iST_Di= (26, 26) # direct (cache bypass)
+	iST_0 = (25, 25)
+	iST_A = (24, 24) # address write-back enable 
+	iST_Z = (22, 23) # size field used by ST
 	iA_alias = (21, 26) # necessary because iA cannot occur as both parameter and constraint at once
 	iB    = (15, 20) # op 1 address
 	iB_alias = (15, 20)
 	iC    = (9, 14) # op 2 address
 	iC_alias   = (9, 14)
-	iLD0       = (13, 13)
-	iDi   = (14, 14)  # direct (cache bypass)
-	iAddr = (12, 12) # address write-back enable (see ARC Ref. p. 99)
-	iZ   = (10, 11) # size field used by LD
+	iLD_0       = (13, 13)
+	iLD_Di   = (14, 14)  # direct (cache bypass)
+	iLD_A 	 = (12, 12) # address write-back enable (see ARC Ref. p. 99)
+	iLD_Z    = (10, 11) # size field used by LD
 	iX   = (9, 9)        # sign extend field
 	iF   = (8, 8) # flags set field
 	iR   = (7, 7) # reserved, must be 0
@@ -80,6 +85,9 @@ COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; 
 # Always execute
 COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
+ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
+#ADDR:  is iBL_L & pc { export addr; } # iBL_L is signed, does this handle this case correctly?
+
 # macro logicflags() {
 #   tmpC = shift_carry;
 #   tmpV = V;
@@ -110,28 +118,55 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 
 # p. 93 of ARC Ref
 # TODO: implement size, write-back and cache bypass and sign extend
-:ld^FLAGS opA1, "["^opB1, iD^"]" is COND ... & FLAGS ... & iI=0x1 ... & opA1 ... & opB1 & iD ...
+:ld opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD_Z=0x0 & iLD_0=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:4 addr;
 	resultflags(result);
-	build FLAGS;
 }
 
-:ldb^FLAGS opA1, "["^opB1, iD^"]" is COND ... & FLAGS ... & (iI=0x1 & iZ=0x1 & iLD0=0) ... & opA1 ... & opB1 & iD ...
+:ldb opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD_Z=0x1 & iLD_0=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:1 addr;
 	resultflags(result);
-	build FLAGS;
 }
 
-:ldw^FLAGS opA1, "["^opB1, iD^"]" is COND ... & FLAGS ... & (iI=0x1 & iZ=0x2)  ... & opA1 ... & opB1 & iD ...
+:ldw opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD_Z=0x2 & iLD_0=0)  ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:2 addr;
-	resultflags(result);
-	build FLAGS;
+	resultflags(result);	
+}
+
+:st opC1, "["^opB1, iD^"]" is (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
+{
+	local addr = opB1 + iD;
+	*:4 addr = opC1;
+	resultflags(opC1);
+}
+
+:stb opC1, "["^opB1, iD^"]" is (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & iD ...
+{
+	local addr = opB1 + iD;
+	*:1 addr = opC1;
+	resultflags(opC1);
+}
+
+:stw opC1, "["^opB1, iD^"]" is (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & iD ...
+{
+	local addr = opB1 + iD;
+	*:2 addr = opC1;
+	resultflags(opC1);
+}
+
+
+:bl^COND^ADDR is ADDR & COND
+{
+	build COND;
+	build ADDR;
+	blink = inst_next;
+	goto ADDR;
 }
 
 :add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
