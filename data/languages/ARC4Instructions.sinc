@@ -81,12 +81,16 @@ cc: ".HI" is iQ=13 { tmp:1 = C && (!Z); export tmp; }
 cc: ".LS" is iQ=14 { tmp:1 = (!C) || Z; export tmp; }
 cc: ".PNZ" is iQ=15 { tmp:1 = (!Z) && (!N); export tmp; }
 
+COND: cc is cc & (iQ=0 & iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; }
 # Always execute
 COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
 ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
-#ADDR:  is iBL_L & pc { export addr; } # iBL_L is signed, does this handle this case correctly?
+
+dd: ".ND" is iN=0 { delayslot(1); } # TODO: Only execute next instruction when not jumping (Default)
+dd: ".D"  is iN=1 {	delayslot(1); } # Always execute next instruction
+dd: ".JD" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
 
 # macro logicflags() {
 #   tmpC = shift_carry;
@@ -161,12 +165,12 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 }
 
 
-:bl^COND^ADDR is ADDR & COND
+:bl^COND^dd ADDR is (iI=0x5) & COND & dd & ADDR
 {
 	build COND;
 	build ADDR;
 	blink = inst_next;
-	goto ADDR;
+	call ADDR;
 }
 
 :add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
@@ -275,14 +279,13 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 {
 }
 
-:j^" blink" is iQ=0x0 & iI=0x7 & iA=0 & iB=0x1F & iC=0 & iF=0 #not handling set flags see instruction manual
+:j^COND^dd^" blink" is COND & dd & iQ=0x0 & iI=0x7 & iA=0 & iB=0x1F & iC=0 & iF=0 #not handling set flags see instruction manual
 {
-	pc = blink;
 	return [pc];
 }
 
-:j^COND opB1 is COND ... & iI=0x7 ... & iA=0 ... & opB1 & iC=0 ... & iF=0 ...  #not handling set flags see instruction manual
+:j^COND^dd opB1 is COND ... & dd ... & iI=0x7 ... & iA=0 ... & opB1 & iC=0 ... & iF=0 ...  #not handling set flags see instruction manual
 {
-	pc = opB1;
-	goto [pc];
+	build COND;
+	goto [opB1];
 }
