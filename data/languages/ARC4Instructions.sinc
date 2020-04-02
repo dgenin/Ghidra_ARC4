@@ -4,7 +4,7 @@ define token instr(32)
 	iBL_L = (7,26) signed  # destination address divided by 4
 	iST_Di= (26, 26) # direct (cache bypass)
 	iST_0 = (25, 25)
-	iST_A = (24, 24) # address write-back enable 
+	iST_A = (24, 24) # address write-back enable
 	iST_Z = (22, 23) # size field used by ST
 	iA_alias = (21, 26) # necessary because iA cannot occur as both parameter and constraint at once
 	iB    = (15, 20) # op 1 address
@@ -46,9 +46,9 @@ attach variables [ iA iB iC ] [
 # 63 - Short immediate data indicator not setting
 #      flags
 
-shimm9_A: "0" is iA { export *[const]:$(SIZE) iA; }
-shimm9:  ""^iD is iD { export *[const]:$(SIZE) iD; }
-limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field; }
+# shimm9_A: "0" is iA { export *[const]:$(SIZE) iA; }
+# shimm9:  ""^iD is iD { export *[const]:$(SIZE) iD; }
+# limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field; }
 
 opA1: iA is iA_alias<61 & iA {export iA; } # normal register operand
 opA1: "0" is iA_alias=61 & iA { export iA; } # short immediate with flags set
@@ -64,22 +64,22 @@ opC1: iD is iC=61 & iD {export *[const]:$(SIZE) iD; } # short immediate with fla
 opC1: iD is iC=63 & iD {export *[const]:$(SIZE) iD; } # short immediate without flags set
 opC1: limm32_field is iC=62; limm32_field {export *[const]:$(SIZE) limm32_field; } # long immediate
 
-cc: ".AL" is iQ=0 { export 1:1; }
-cc: ".EQ" is iQ=1 { export Z; }
-cc: ".N	  E" is iQ=2 { tmp:1 = !Z; export tmp; }
-cc: ".PL" is iQ=3 { tmp:1 = !N; export tmp; }
-cc: ".MI" is iQ=4 { export N; }
-cc: ".CS" is iQ=5 { export C; }
-cc: ".CC" is iQ=6 { tmp:1 = !C; export tmp; }
-cc: ".VS" is iQ=7 { export V; }
-cc: ".VC" is iQ=8 { tmp:1 = !V; export tmp; }
-cc: ".GT" is iQ=9 { tmp:1 = (!Z) && (N==V); export tmp; }
-cc: ".GE" is iQ=10 { tmp:1 = (N==V); export tmp; }
-cc: ".LT" is iQ=11 { tmp:1 = (N!=V); export tmp; }
-cc: ".LE" is iQ=12 { tmp:1 = Z || (N!=V); export tmp; }
-cc: ".HI" is iQ=13 { tmp:1 = C && (!Z); export tmp; }
-cc: ".LS" is iQ=14 { tmp:1 = (!C) || Z; export tmp; }
-cc: ".PNZ" is iQ=15 { tmp:1 = (!Z) && (!N); export tmp; }
+cc: "" is iQ=0 { export 1:1; } #not displaying anything for always-execute
+cc: ".eq" is iQ=1 { export Z; }
+cc: ".ne" is iQ=2 { tmp:1 = !Z; export tmp; }
+cc: ".pl" is iQ=3 { tmp:1 = !N; export tmp; }
+cc: ".mi" is iQ=4 { export N; }
+cc: ".cs" is iQ=5 { export C; }
+cc: ".cc" is iQ=6 { tmp:1 = !C; export tmp; }
+cc: ".vs" is iQ=7 { export V; }
+cc: ".vc" is iQ=8 { tmp:1 = !V; export tmp; }
+cc: ".gt" is iQ=9 { tmp:1 = (!Z) && (N==V); export tmp; }
+cc: ".ge" is iQ=10 { tmp:1 = (N==V); export tmp; }
+cc: ".lt" is iQ=11 { tmp:1 = (N!=V); export tmp; }
+cc: ".le" is iQ=12 { tmp:1 = Z || (N!=V); export tmp; }
+cc: ".hi" is iQ=13 { tmp:1 = C && (!Z); export tmp; }
+cc: ".ls" is iQ=14 { tmp:1 = (!C) || Z; export tmp; }
+cc: ".pnz" is iQ=15 { tmp:1 = (!Z) && (!N); export tmp; }
 
 COND: cc is cc & (iQ=0 & iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; }
@@ -88,9 +88,9 @@ COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | 
 
 ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
 
-dd: ".ND" is iN=0 { delayslot(1); } # TODO: Only execute next instruction when not jumping (Default)
-dd: ".D"  is iN=1 {	delayslot(1); } # Always execute next instruction
-dd: ".JD" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
+dd: ".nd" is iN=0 { delayslot(1); } # TODO: Only execute next instruction when not jumping (Default)
+dd: ".d"  is iN=1 {	delayslot(1); } # Always execute next instruction
+dd: ".jd" is iN=2 { delayslot(1); 	} # TODO: Only execute next instruction when jumping
 
 # macro logicflags() {
 #   tmpC = shift_carry;
@@ -113,11 +113,9 @@ macro subflags(op1,op2) {
  tmpV = sborrow(op1,op2);
 }
 
-FLAGS: ".F" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
+FLAGS: ".f" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
 FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
-#FLAGS: ".F" is (iC=61 & iB=61) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
-FLAGS: ".F" is (iC<63 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
-#FLAGS: ".F" is (iC=61 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; } 
+FLAGS: ".f" is (iC<63 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
 FLAGS: ""   is (iC=63 | iB=63) { }
 
 # p. 93 of ARC Ref
@@ -140,7 +138,7 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + iD;
 	result = *:2 addr;
-	resultflags(result);	
+	resultflags(result);
 }
 
 :st opC1, "["^opB1, iD^"]" is (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
@@ -164,6 +162,12 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	resultflags(opC1);
 }
 
+:b^COND^dd ADDR is (iI=0x4) & COND & dd & ADDR
+{
+	build COND;
+	build ADDR;
+	goto ADDR;
+}
 
 :bl^COND^dd ADDR is (iI=0x5) & COND & dd & ADDR
 {
@@ -216,6 +220,54 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 }
 
 :and^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xC ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 & opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+# and reg, shimm, shimm
+:mov^COND^FLAGS opA1, opB1 is COND ... & FLAGS ... & (iI=0xC & (iB=61 | iB=63) & (iC=61 | iC=63)) ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 & opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+# and reg, limm, limm
+:mov^COND^FLAGS opA1, opB1 is COND ... & FLAGS ... & (iI=0xC & iB=62 & iC=62) ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 & opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+# and dst_reg, src_reg, src_reg
+:mov^COND^FLAGS opA1, opB1 is COND ... & FLAGS ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 & opC1;
+	local result = opA1;
+	resultflags(result);
+	#addflags(opB1, opC1);
+	# logicflags();
+	build FLAGS;
+}
+
+# and shimm, op1, op1
+:tst^COND^FLAGS opB1 is COND ... & FLAGS ... & (iI=0xC & iA=63 & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 & opC1;
@@ -284,8 +336,26 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	return [pc];
 }
 
-:j^COND^dd opB1 is COND ... & dd ... & iI=0x7 ... & iA=0 ... & opB1 & iC=0 ... & iF=0 ...  #not handling set flags see instruction manual
+:j^COND^FLAGS opB1 is COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=0) ... & opB1
 {
 	build COND;
+	addr = opB1&0x0FFFFFFF<<2;
+	tmpZ = opB1[31,1];
+	tmpN = opB1[30,1];
+	tmpC = opB1[29,1];
+	tmpV = opB1[28,1];
+	build FLAGS;
 	goto [opB1];
+}
+
+:j^COND^dd^FLAGS opB1 is COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB!=62 & iC=0) ... & opB1
+{
+	build COND;
+	addr = opB1&0x0FFFFFFF<<2;
+	tmpZ = opB1[31,1];
+	tmpN = opB1[30,1];
+	tmpC = opB1[29,1];
+	tmpV = opB1[28,1];
+	build FLAGS;
+	goto [addr];
 }
