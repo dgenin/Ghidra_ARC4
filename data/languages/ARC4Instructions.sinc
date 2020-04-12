@@ -118,27 +118,35 @@ FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 FLAGS: ".f" is (iC<63 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
 FLAGS: ""   is (iC=63 | iB=63) { }
 
+FLAGSNZ: ".f" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { N = tmpN; Z = tmpZ; }
+FLAGSNZ: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
+FLAGSNZ: ".f" is (iC<63 & iB<63) { N = tmpN; Z = tmpZ; }
+FLAGSNZ: ""   is (iC=63 | iB=63) { }
+
 # p. 93 of ARC Ref
 # TODO: implement size, write-back and cache bypass and sign extend
 :ld opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD_Z=0x0 & iLD_0=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:4 addr;
-	resultflags(result);
+	#resultflags(result);
+	opA1 = result;
 }
 
 :ldb opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD_Z=0x1 & iLD_0=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:1 addr;
-	resultflags(result);
+	#resultflags(result);
+	opA1 = zext(result);
 }
 
 :ldw opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD_Z=0x2 & iLD_0=0)  ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:2 addr;
-	resultflags(result);
+	#resultflags(result);
+	opA1 = zext(result);
 }
 
 :st opC1, "["^opB1, iD^"]" is (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
@@ -219,88 +227,74 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	build FLAGS;
 }
 
-:and^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xC ... & opA1 ... & opB1 & opC1
+:and^COND^FLAGSNZ opA1, opB1, opC1 is COND ... & FLAGSNZ ... & iI=0xC ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 & opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
 # and reg, shimm, shimm
-:mov^COND^FLAGS opA1, opB1 is COND ... & FLAGS ... & (iI=0xC & (iB=61 | iB=63) & (iC=61 | iC=63)) ... & opA1 ... & opB1 & opC1
+:mov^COND^FLAGSNZ opA1, opB1 is COND ... & FLAGSNZ ... & (iI=0xC & (iB=61 | iB=63) & (iC=61 | iC=63)) ... & opA1 ... & opB1 & opC1
 {
 	build COND;
-	opA1 = opB1 & opC1;
+	opA1 = opB1; # & opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
 # and reg, limm, limm
-:mov^COND^FLAGS opA1, opB1 is COND ... & FLAGS ... & (iI=0xC & iB=62 & iC=62) ... & opA1 ... & opB1 & opC1
+:mov^COND^FLAGSNZ opA1, opB1 is COND ... & FLAGSNZ ... & (iI=0xC & iB=62 & iC=62) ... & opA1 ... & opB1 & opC1
 {
 	build COND;
-	opA1 = opB1 & opC1;
+	opA1 = opB1; # & opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
 # and dst_reg, src_reg, src_reg
-:mov^COND^FLAGS opA1, opB1 is COND ... & FLAGS ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
+:mov^COND^FLAGSNZ opA1, opB1 is COND ... & FLAGSNZ ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
 {
 	build COND;
-	opA1 = opB1 & opC1;
+	opA1 = opB1; # & opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
 # and shimm, op1, op1
-:tst^COND^FLAGS opB1 is COND ... & FLAGS ... & (iI=0xC & iA=63 & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
+:tst^COND^FLAGSNZ opB1 is COND ... & FLAGSNZ ... & (iI=0xC & iA=63 & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 & opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
-:or^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xD ... & opA1 ... & opB1 & opC1
+:or^COND^FLAGSNZ opA1, opB1, opC1 is COND ... & FLAGSNZ ... & iI=0xD ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 | opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
-:xor^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0xF ... & opA1 ... & opB1 & opC1
+:xor^COND^FLAGSNZ opA1, opB1, opC1 is COND ... & FLAGSNZ ... & iI=0xF ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 ^ opC1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
-:asl^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x10 ... & iB=iC ... & opA1 ... & opB1 & opC1
+:asl^COND^FLAGSNZ opA1, opB1, opC1 is COND ... & FLAGSNZ ... & iI=0x10 ... & iB=iC ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	local tmp = (opB1 & 0x80000000) >> 31;
@@ -308,13 +302,11 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 << 1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	#build FLAGSNZ;
 }
 
 # TODO: implement correct semantics spec
-:lsl^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x11 ... & iB=iC ... & opA1 ... & opB1 & opC1
+:lsl^COND^FLAGSNZ opA1, opB1, opC1 is COND ... & FLAGSNZ ... & iI=0x11 ... & iB=iC ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	local tmp = (opB1 & 0x80000000) >> 31;
@@ -322,9 +314,7 @@ FLAGS: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 << 1;
 	local result = opA1;
 	resultflags(result);
-	#addflags(opB1, opC1);
-	# logicflags();
-	build FLAGS;
+	# build FLAGSNZ;
 }
 
 :nop^COND^FLAGS is COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
