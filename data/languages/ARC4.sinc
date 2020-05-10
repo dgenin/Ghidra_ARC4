@@ -33,3 +33,7 @@ define register offset=0x1100 size=1 [
        Z   N  C  V tmpZ tmpN tmpC tmpV
 ];
 
+define register offset=0x1200 size=$(SIZE) [
+       status semaphore lp_start lp_end identity debug
+       aux6 aux7 aux8 aux9 aux10
+];

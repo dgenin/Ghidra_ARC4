@@ -6,23 +6,23 @@
   </global>
   <stackpointer register="sp" space="ram"/>
   <default_proto>
-    <prototype name="__stdcall" extrapop="unknown" stackshift="4">
-      <input pointermax="16">
+    <prototype name="__stdcall" extrapop="0" stackshift="0">
+      <input>
         <pentry minsize="1" maxsize="4">
-          <register name="r4"/>
-        </pentry>
-        <pentry minsize="1" maxsize="4">
-          <register name="r3"/>
-        </pentry>
-        <pentry minsize="1" maxsize="4">
-          <register name="r2"/>
+          <register name="r0"/>
         </pentry>
         <pentry minsize="1" maxsize="4">
           <register name="r1"/>
         </pentry>
         <pentry minsize="1" maxsize="4">
-          <register name="r0"/>
+          <register name="r2"/>
         </pentry>
+        <pentry minsize="1" maxsize="4">
+          <register name="r3"/>
+        </pentry>
+        <!--pentry minsize="1" maxsize="4">
+          <register name="r4"/>
+        </pentry-->
         <pentry minsize="1" maxsize="500" align="4">
           <addr offset="0" space="stack"/>
         </pentry>
@@ -35,15 +35,21 @@
       <unaffected>
         <varnode space="ram" offset="0" size="4"/>
         <register name="sp"/>
+        <register name="fp"/>
         <register name="blink"/>
-        <register name="r5"/>
-        <register name="r6"/>
-        <register name="r7"/>
+        <register name="r13"/>
+        <register name="r14"/>
+        <register name="r15"/>
+        <register name="r16"/>
+        <register name="r17"/>
+        <register name="r18"/>
+        <register name="r19"/>
+        <register name="r20"/>
       </unaffected>
     </prototype>
   </default_proto>
-  
-    <prototype name="__stackcall" extrapop="unknown" stackshift="4">
+
+<!--    <prototype name="__stackcall" extrapop="unknown" stackshift="4">
 	  <input pointermax="16">
 	    <pentry minsize="1" maxsize="500" align="4">
 	      <addr offset="0" space="stack"/>
@@ -60,5 +66,5 @@
 	    <register name="blink"/>
 	  </unaffected>
 	</prototype>
-    
+-->
 </compiler_spec>
