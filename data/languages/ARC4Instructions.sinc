@@ -85,14 +85,25 @@ cc: ".hi" is iQ=13 { tmp:1 = C && (!Z); export tmp; }
 cc: ".ls" is iQ=14 { tmp:1 = (!C) || Z; export tmp; }
 cc: ".pnz" is iQ=15 { tmp:1 = (!Z) && (!N); export tmp; }
 
-LOOP: "" is (lp_start & lp_end) { if (inst_next==lp_end) goto [lp_start]; }
+#LOOP: "" is (lp_start & lp_end) { if (inst_next==lp_end) goto [lp_start]; }
 
 COND: cc is cc & (iQ=0 & iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; }
 # Always execute
 COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
-ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
+LP_COND: cc is cc & (iQ=0 & iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
+LP_COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (cc) goto <skip>; goto [lp_addr]; <skip> }
+# Always execute
+LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
+
+
+# TODO: jADDR table to correctly display jump target addresses
+ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { reloc2:4 = inst_next + (4*iBL_L); export reloc2; }
+
+dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (Default)
+dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
+dd: ".jd" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
 
 macro resultflags(result) {
  tmpN = result s< 0;
@@ -111,11 +122,13 @@ macro subflags(op1,op2) {
 }
 
 # p.36 ARC4 CPU manual
+# TODO: implement loop instruction
 macro loop() {
 	if (inst_next!=lp_end) goto <skip>;
 	lp_count = lp_count - 1;
-	if (lp_count!=0) goto [lp_start];
-	<skip>
+	if (lp_count==0) goto <skip>;
+	goto [lp_start];
+<skip>
 }
 
 FLAGS: ".f" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
@@ -136,6 +149,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	result = *:4 addr;
 	#resultflags(result);
 	opA1 = result;
+	loop();
 }
 
 :ldb opA1, "["^opB1, opC1^"]" is (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
@@ -160,6 +174,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	result = *:4 addr;
 	#resultflags(result);
 	opA1 = result;
+	loop();
 }
 
 :ldb opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
@@ -179,8 +194,10 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 }
 
 # TODO: flags?
+# TODO: FIX!
 :lr opA1, "["^opB1^"]" is (iI=0x1 & iLD0_Z=0x0 & iLD0_R=1 & iB!=62) ... & opA1 ... & opB1 & iD ...
 {
+	loop();
 	local addr = 0x1200 + opB1:2;
 	result = *[register] addr;
 	#resultflags(result);
@@ -230,27 +247,44 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	call ADDR;
 }
 
-:j^COND^dd^" blink" is COND & dd & iI=0x7 & iA=0 & iB=0x1F & iC=0 & iF=0 #not handling set flags see instruction manual
+:lp^LP_COND^dd ADDR is (iI=0x6) & LP_COND & dd & ADDR
 {
-	return [pc];
+	build ADDR;
+	lp_addr = ADDR;
+	build LP_COND;
+	lp_start = inst_next;
+	lp_end = ADDR;
+}
+
+:j^COND^dd^FLAGS opB1 is (COND & dd & FLAGS & iI=0x7 & iA=0 & iB=0x1F & iC=0) ... & opB1
+{
+	build COND;
+	tmpZ = opB1[31,1];
+	tmpN = opB1[30,1];
+	tmpC = opB1[29,1];
+	tmpV = opB1[28,1];
+	# TODO: not handling setting of E1 & E2 in the status register
+	# 		see p. 95 of ARC Ref
+	build FLAGS;
+	return [blink];
 }
 
 :j^COND^FLAGS opB1 is COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=0) ... & opB1
 {
 	build COND;
-	addr = opB1&0x0FFFFFFF<<2;
+	addr = (opB1&0x0FFFFFFF)<<2;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
 	tmpC = opB1[29,1];
 	tmpV = opB1[28,1];
 	build FLAGS;
-	goto [opB1];
+	goto [addr];
 }
 
-:j^COND^dd^FLAGS opB1 is COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB!=62 & iC=0) ... & opB1
+:j^COND^dd^FLAGS opB1 is COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB!=62 & iB!=0x1F & iC=0) ... & opB1
 {
 	build COND;
-	addr = opB1&0x0FFFFFFF<<2;
+	addr = (opB1&0x0FFFFFFF)<<2;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
 	tmpC = opB1[29,1];
@@ -296,6 +330,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	addflags(opB1, opC1);
 	# logicflags();
 	build FLAGS;
+	loop();
 }
 
 :adc^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x9 ... & opA1 ... & opB1 & opC1
@@ -346,6 +381,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	#build FLAGSNZ;
+	loop();
 }
 
 # and reg, limm, limm
@@ -356,6 +392,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	#build FLAGSNZ;
+	loop();
 }
 
 # and dst_reg, src_reg, src_reg
@@ -366,6 +403,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	#build FLAGSNZ;
+	loop();
 }
 
 # and shimm, op1, op1
@@ -421,4 +459,5 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 :nop^COND^FLAGS is COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
 {
+	loop();
 }

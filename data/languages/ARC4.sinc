@@ -28,7 +28,7 @@ define register offset=0x1000 size=$(SIZE) [
 # Z - ZERO
 # N - NEGATIVE
 # V - OVERFLOW
-
+# tmp* are fake registers used to pass flags into FLAGS table
 define register offset=0x1100 size=1 [
        Z   N  C  V tmpZ tmpN tmpC tmpV
 ];
@@ -36,4 +36,9 @@ define register offset=0x1100 size=1 [
 define register offset=0x1200 size=$(SIZE) [
        status semaphore lp_start lp_end identity debug
        aux6 aux7 aux8 aux9 aux10
+];
+
+# Fake register used to pass loop address into LP_COND table
+define register offset=0x1300 size=$(SIZE) [
+       lp_addr
 ];
