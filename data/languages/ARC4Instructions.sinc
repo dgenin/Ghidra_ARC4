@@ -123,7 +123,8 @@ macro subflags(op1,op2) {
 
 # p.36 ARC4 CPU manual
 # TODO: implement loop instruction
-macro loop() {
+macro loop(lp_in_use) {
+	if !lp_in_use goto <skip>;
 	if (inst_next!=lp_end) goto <skip>;
 	lp_count = lp_count - 1;
 	if (lp_count==0) goto <skip>;
@@ -143,13 +144,13 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 # p. 93 of ARC Ref
 # TODO: implement write-back and cache bypass and sign extend
-:ld opA1, "["^opB1, opC1^"]" is (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
+:ld opA1, "["^opB1, opC1^"]" is lp_in_use & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
 {
 	local addr = opB1 + opC1;
 	result = *:4 addr;
 	#resultflags(result);
 	opA1 = result;
-	loop();
+	loop(lp_in_use:1);
 }
 
 :ldb opA1, "["^opB1, opC1^"]" is (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
@@ -174,7 +175,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	result = *:4 addr;
 	#resultflags(result);
 	opA1 = result;
-	loop();
+	#loop();
 }
 
 :ldb opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
@@ -197,11 +198,11 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 # TODO: FIX!
 :lr opA1, "["^opB1^"]" is (iI=0x1 & iLD0_Z=0x0 & iLD0_R=1 & iB!=62) ... & opA1 ... & opB1 & iD ...
 {
-	loop();
 	local addr = 0x1200 + opB1:2;
 	result = *[register] addr;
 	#resultflags(result);
 	opA1 = result;
+	#loop();
 }
 
 :st opC1, "["^opB1, iD^"]" is (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
@@ -248,6 +249,10 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 }
 
 :lp^LP_COND^dd ADDR is (iI=0x6) & LP_COND & dd & ADDR
+[
+	lp_in_use=1;
+	#globalset(inst_next, lp_in_use);
+]
 {
 	build ADDR;
 	lp_addr = ADDR;
@@ -330,7 +335,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	addflags(opB1, opC1);
 	# logicflags();
 	build FLAGS;
-	loop();
+	#loop();
 }
 
 :adc^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x9 ... & opA1 ... & opB1 & opC1
@@ -381,7 +386,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	#build FLAGSNZ;
-	loop();
+	#loop();
 }
 
 # and reg, limm, limm
@@ -392,7 +397,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	#build FLAGSNZ;
-	loop();
+	#loop();
 }
 
 # and dst_reg, src_reg, src_reg
@@ -403,7 +408,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	#build FLAGSNZ;
-	loop();
+	#loop();
 }
 
 # and shimm, op1, op1
@@ -459,5 +464,5 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 :nop^COND^FLAGS is COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
 {
-	loop();
+	#loop();
 }

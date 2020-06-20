@@ -40,5 +40,8 @@ define register offset=0x1200 size=$(SIZE) [
 
 # Fake register used to pass loop address into LP_COND table
 define register offset=0x1300 size=$(SIZE) [
-       lp_addr
+       lp_addr lp_status
 ];
+
+define context lp_status
+       lp_in_use = (0,0);
