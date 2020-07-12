@@ -99,7 +99,7 @@ LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63
 
 
 # TODO: jADDR table to correctly display jump target addresses
-ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { reloc2:4 = inst_next + (4*iBL_L); export reloc2; }
+ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export reloc; }
 
 dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (Default)
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
@@ -169,13 +169,13 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = zext(result);
 }
 
-:ld opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
+:ld opA1, "["^opB1, iD^"]" is lp_in_use & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:4 addr;
 	#resultflags(result);
 	opA1 = result;
-	#loop();
+	loop(lp_in_use:1);
 }
 
 :ldb opA1, "["^opB1, iD^"]" is (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
@@ -251,7 +251,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 :lp^LP_COND^dd ADDR is (iI=0x6) & LP_COND & dd & ADDR
 [
 	lp_in_use=1;
-	#globalset(inst_next, lp_in_use);
+	globalset(inst_next, lp_in_use);
 ]
 {
 	build ADDR;
@@ -326,7 +326,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	goto [addr];
 }
 
-:add^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
+:add^COND^FLAGS opA1, opB1, opC1 is lp_in_use & COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 + opC1;
@@ -335,7 +335,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	addflags(opB1, opC1);
 	# logicflags();
 	build FLAGS;
-	#loop();
+	loop(lp_in_use:1);
 }
 
 :adc^COND^FLAGS opA1, opB1, opC1 is COND ... & FLAGS ... & iI=0x9 ... & opA1 ... & opB1 & opC1
@@ -462,7 +462,11 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	# build FLAGSNZ;
 }
 
-:nop^COND^FLAGS is COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
+:nop^COND^FLAGS is lp_in_use=1 & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
 {
-	#loop();
+	loop(1:1);
+}
+
+:nop^COND^FLAGS is lp_in_use=0 & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
+{
 }
