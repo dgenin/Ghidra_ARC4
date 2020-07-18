@@ -105,6 +105,18 @@ dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (De
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
 dd: ".jd" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
 
+# TODO: This is the correct implementation of loop p-code
+#		Add square bracket code to clear lp_in_use
+LOOP: "lp_in_use=" is (lp_in_use=0) {}
+LOOP: "lp_in_use=" is (lp_in_use=1) {
+	if (inst_next!=lp_end) goto <skip>;
+	lp_count = lp_count - 1;
+
+	if (lp_count==0) goto <skip>;
+	goto [lp_start];
+<skip>
+}
+
 macro resultflags(result) {
  tmpN = result s< 0;
  tmpZ = result == 0;
@@ -127,6 +139,7 @@ macro loop(lp_in_use) {
 	if !lp_in_use goto <skip>;
 	if (inst_next!=lp_end) goto <skip>;
 	lp_count = lp_count - 1;
+	# lp_in_use = 0;
 	if (lp_count==0) goto <skip>;
 	goto [lp_start];
 <skip>
@@ -378,6 +391,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	#build FLAGSNZ;
 }
 
+# with mov : iI = 0xC
 # and reg, shimm, shimm
 :mov^COND^FLAGSNZ opA1, opB1 is COND ... & FLAGSNZ ... & (iI=0xC & (iB=61 | iB=63) & (iC=61 | iC=63)) ... & opA1 ... & opB1 & opC1
 {
@@ -462,11 +476,15 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	# build FLAGSNZ;
 }
 
-:nop^COND^FLAGS is lp_in_use=1 & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
-{
-	loop(1:1);
-}
+# :nop^COND^FLAGS is (lp_in_use=1) & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
+# {
+# 	loop(1:1);
+# }
 
-:nop^COND^FLAGS is lp_in_use=0 & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
+# :nop^COND^FLAGS is lp_in_use=0 & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
+# {
+# }
+
+:nop^COND^FLAGS^LOOP is LOOP & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
 {
 }
