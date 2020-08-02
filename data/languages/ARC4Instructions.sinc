@@ -105,13 +105,12 @@ dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (De
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
 dd: ".jd" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
 
-# TODO: This is the correct implementation of loop p-code
-#		Add square bracket code to clear lp_in_use
+# p.36 ARC4 CPU manual
 LOOP: "lp_in_use=" is (lp_in_use=0) {}
-LOOP: "lp_in_use=" is (lp_in_use=1) {
+LOOP: "lp_in_use=" is (lp_in_use=1)
+{
 	if (inst_next!=lp_end) goto <skip>;
 	lp_count = lp_count - 1;
-
 	if (lp_count==0) goto <skip>;
 	goto [lp_start];
 <skip>
@@ -131,18 +130,6 @@ macro addflags(op1,op2) {
 macro subflags(op1,op2) {
  tmpC = op2 <= op1;
  tmpV = sborrow(op1,op2);
-}
-
-# p.36 ARC4 CPU manual
-# TODO: implement loop instruction
-macro loop(lp_in_use) {
-	if !lp_in_use goto <skip>;
-	if (inst_next!=lp_end) goto <skip>;
-	lp_count = lp_count - 1;
-	# lp_in_use = 0;
-	if (lp_count==0) goto <skip>;
-	goto [lp_start];
-<skip>
 }
 
 FLAGS: ".f" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
@@ -265,6 +252,8 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 [
 	lp_in_use=1;
 	globalset(inst_next, lp_in_use);
+	lp_in_use=0;
+	globalset(ADDR, lp_in_use);
 ]
 {
 	build ADDR;
@@ -415,7 +404,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 }
 
 # and dst_reg, src_reg, src_reg
-:mov^COND^FLAGSNZ opA1, opB1 is COND ... & FLAGSNZ ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
+:mov^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1; # & opC1;
