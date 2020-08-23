@@ -8,6 +8,7 @@ loop_in:
 loop_end:
     mov r0,r2
     j blink
+
     nop
     nop
     nop
@@ -24,4 +25,17 @@ loop1_in:
     nop
 loop1_end:
     mov r0,r2
+    j blink
+
+    mov r2, 0
+    mov lp_count, 1
+    mov r3, loop2_end>>2
+    add r4, r3, 1
+    sr  r3, [lp_start]
+    sr  r4, [lp_end]
+    nop
+    nop
+loop2_end:
+    add r2,r2,r0
+    mov r0, r2
     j blink
