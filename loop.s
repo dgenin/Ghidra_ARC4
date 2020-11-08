@@ -28,7 +28,7 @@ loop1_end:
     j blink
 
     mov r2, 0
-    mov lp_count, 1
+    mov lp_count, 5
     mov r3, loop2_end>>2
     add r4, r3, 1
     sr  r3, [lp_start]

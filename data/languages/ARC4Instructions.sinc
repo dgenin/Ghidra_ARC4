@@ -46,7 +46,7 @@ attach variables [ iA iB iC ] [
        shimmflags limm shimmnoflags
 ];
 
-attach variables [ iSR_D ] [
+attach variables [ iSR_D iSR_B ] [
 	status semaphore lp_start lp_end identity debug
 	aux6 aux7 aux8 aux9 aux10 aux11 aux12 aux13 aux14 aux15
 	aux16 aux17 aux18 aux19 aux20 aux21 aux22 aux23 aux24 aux25
@@ -79,9 +79,13 @@ opB1: iD is iB=61 & iD { export *[const]:$(SIZE) iD; } # short immediate with fl
 opB1: iD is iB=63 & iD { export *[const]:$(SIZE) iD; } # short immediate without flags set
 opB1: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
-opSR_B1: iB is iB_alias<61 & iB { export iB; } # normal register operand
-opSR_B1: iSR_D is iB=61 & iSR_D { export iSR_D; } # short immediate with flags set
-opSR_B1: iSR_D is iB=63 & iSR_D { export iSR_D; } # short immediate without flags set
+# TODO: SR instruction with implicit register specification, e.g.,
+#		sr r1, [r2]
+#		results in decompiler code with a RAM memory write, e.g.,
+#		*(int **)((uVar1 & 0x3f) + 0x1300) = piParm2;
+opSR_B1: iSR_B is iB_alias<61 & iSR_B { export iSR_B; } # normal register operand
+opSR_B1: iSR_D is iSR_B=61 & iSR_D { export iSR_D; } # short immediate with flags set
+opSR_B1: iSR_D is iSR_B=63 & iSR_D { export iSR_D; } # short immediate without flags set
 opSR_B1: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
 opC1: iC is iC_alias<61 & iC { export iC; } # normal register operand
@@ -124,6 +128,11 @@ ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[const]:$(SIZE
 # This avoids Ghidra complaining about unreachable blocks if end-of-loop testing
 # p-code is inserted into every instruction, which is how hardware does it.
 PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[const]:$(SIZE) reloc; }
+
+PREV_opC1: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export res; } # normal register operand
+PREV_opC1: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate with flags set
+PREV_opC1: res is iC=63 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate without flags set
+PREV_opC1: res is iC=62; limm32_field [ res = (limm32_field<<2) - 4; ]{ export *[const]:$(SIZE) res; } # long immediate
 
 dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (Default)
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
@@ -230,7 +239,14 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = reg_val;
 }
 
-:sr opC1, "["^opSR_B1^"]" is LOOP & (iI=0x2 & iA=0x10 & iSR_B=lp_end) ... & opC1 ... & opSR_B1 ... & iD ...
+# lp_end = 3
+# NOTE: it looks like we can't constrain opB1, so we need to implement all
+#		cases explicitly by constraining iB, iD and limm_field32.
+#		This is the sr c/limm, shimm implementaiton.
+# NOTE: opC1 is not allowed in square brackets so we need to make
+#		equivalents of ADDR and PREV_ADDR to get the right values in to
+#		square brackets.
+:sr opC1, "["^opB1^"]" is PREV_opC1 & LOOP & (iI=0x2 & iA=0x10 & (iB=61 | iB=63) & iD=0x3) ... & opC1 ... & opB1 ... & iD ...
 [
 	# Set lp_in_use context variable for the last
 	# instrution at the end of the loop so that
@@ -238,20 +254,27 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	# in that instruction.
 	# NOTE: if lp_end is overwritten while the
 	# loop is running there will be sadness:'(
+	# lp_in_use=1;
+	# globalset(inst_next, lp_in_use);
+	# lp_in_use=0;
+	# TODO: This still results in unreachable branches because register value
+	#		is not known at decompile time and lp_in_use ends up being set
+	#		everywhere.
 	lp_in_use=1;
-	globalset(inst_next, lp_in_use);
+	globalset(PREV_opC1, lp_in_use);
 	lp_in_use=0;
 	globalset(opC1, lp_in_use);
 ]
 {
-	# local addr = 0x1200 + opSR_B1:2;
-	# *[register] addr = opC1;
 	lp_end = opC1<<2;
 }
 
-:sr opC1, "["^opSR_B1^"]" is LOOP & (iI=0x2 & iA=0x10 & iSR_B!=lp_end) ... & opC1 ... & opSR_B1 ... & iD ...
+:sr opC1, "["^opB1^"]" is LOOP & (iI=0x2 & iA=0x10 & iD!=0x3) ... & opC1 ... & opB1 ... & iD ...
 {
-	local addr = 0x1200 + opSR_B1:2;
+	# NOTE: 0x1300 base address below must match the base of the auxiliary
+	# 		register set in ARC4.sinc
+	# TODO: Eliminate hardcoding 0x1300?
+	local addr = 0x1300 + ((opB1:2)&0x3F);
 	*[register] addr = opC1;
 }
 
@@ -384,7 +407,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	goto [addr];
 }
 
-:add^COND^FLAGS opA1, opB1, opC1 is LOOP & lp_in_use & COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
+:add^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 + opC1;
