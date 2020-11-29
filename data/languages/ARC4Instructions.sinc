@@ -416,6 +416,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	addflags(opB1, opC1);
 	# logicflags();
 	build FLAGS;
+	build LOOP;
 }
 
 :adc^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x9 ... & opA1 ... & opB1 & opC1
