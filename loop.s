@@ -31,8 +31,9 @@ loop1_end:
     mov lp_count, 5
     mov r3, loop2_end>>2
     add r4, r3, 1
-    sr  r3, [lp_start]
+    sr  r3, [lp_start]		
     sr  r4, [lp_end]
+	;; sr 0x8e, [lp_end]
     nop
     nop
 loop2_end:

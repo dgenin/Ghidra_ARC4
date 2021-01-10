@@ -234,15 +234,31 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 :lr opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iC=0x10) ... & opA1 ... & opB1 & iD ...
 {
-	local addr = 0x1200 + opB1:2;
+	local addr = &:2 status + opB1:2;
 	reg_val = *[register] addr;
 	opA1 = reg_val;
 }
 
 # lp_end = 3
-# NOTE: it looks like we can't constrain opB1, so we need to implement all
-#		cases explicitly by constraining iB, iD and limm_field32.
-#		This is the sr c/limm, shimm implementaiton.
+# NOTE: Zero-overhead loop setup with explicit stores to auxiliary registers cannot
+# 	be made to work with existing implementation. The reason is that it requires
+#	constants propagation for the disassembler to be able to insert p-code
+#	jump at the correct instruction. The address of the loop end instruction
+#	must be computed from the corresponding label (using left shift?), which
+#	means it cannot be explicitly computed at compile time by assembler and
+#	therefore cannot be an immediate. So loop_end setup requires a register
+#	store, e.g., sr r1, [lp_end], where r1 holds the computed address of the
+#	end of the loop.
+#	The lp instruction circumvents this issue by using pc-relative addressing,
+#	so that the loop end instruction address can be computed by the disassembler.
+#	lp instruction therefore behaves like a branch instruction.
+#
+#	Unrelated, the gcc ARC4 assembler appears to OR short immediates in auxiliary
+#	register store instructions, making it impossible to use code like
+#	sr 0x8e, [lp_end], which assembles into sr 0x8f, [0x8f]. It should have been
+#	assembled into an instruction using a short immediate and a long immediate,
+#	instead the two immediates are ORed into the short immediate field. Brilliant!
+#
 # NOTE: opC1 is not allowed in square brackets so we need to make
 #		equivalents of ADDR and PREV_ADDR to get the right values in to
 #		square brackets.
@@ -274,8 +290,9 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	# NOTE: 0x1300 base address below must match the base of the auxiliary
 	# 		register set in ARC4.sinc
 	# TODO: Eliminate hardcoding 0x1300?
-	local addr = 0x1300 + ((opB1:2)&0x3F);
-	*[register] addr = opC1;
+	#local addr = 0x1300 + ((opB1:2)&0x3F);
+	# *[register] (&:2 status + opB1:2)  = opC1;
+	*[register] (&:2 status + opB1:2)  = opC1;
 }
 
 :st opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
