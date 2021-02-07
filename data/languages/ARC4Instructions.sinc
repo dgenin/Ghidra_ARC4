@@ -122,7 +122,8 @@ LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63
 
 
 # TODO: jADDR table to correctly display jump target addresses
-ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[const]:$(SIZE) reloc; }
+#ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[const]:$(SIZE) reloc; }
+ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
 # Computes address of one instruction before the last instruction named the loop instruction
 # to restrict loop branching p-code to only the final instruction in the loop.
 # This avoids Ghidra complaining about unreachable blocks if end-of-loop testing
