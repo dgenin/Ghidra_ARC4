@@ -400,21 +400,21 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 :jl^COND^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=1) ... & opB1
 {
 	build COND;
-	addr = opB1&0x0FFFFFFF<<2;
+	addr = (opB1&0x0FFFFFFF)<<2;
 	blink = inst_next;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
 	tmpC = opB1[29,1];
 	tmpV = opB1[28,1];
 	build FLAGS;
-	goto [opB1];
+	goto [addr];
 }
 
 #TODO: implement correct loading of flag bits into blink when flag bit is set
 :jl^COND^dd^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB!=62 & iC=1) ... & opB1
 {
 	build COND;
-	addr = opB1&0x0FFFFFFF<<2;
+	addr = (opB1&0x0FFFFFFF)<<2;
 	blink = inst_next;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
