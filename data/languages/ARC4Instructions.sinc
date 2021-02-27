@@ -66,13 +66,11 @@ attach variables [ iSR_D iSR_B ] [
 # 63 - Short immediate data indicator not setting
 #      flags
 
-# shimm9_A: "0" is iA { export *[const]:$(SIZE) iA; }
-# shimm9:  ""^iD is iD { export *[const]:$(SIZE) iD; }
-# limm32:  ""^limm32_field is limm32_field { export *[const]:$(SIZE) limm32_field; }
-
 opA1: iA is iA_alias<61 & iA { export iA; } # normal register operand
 opA1: "0" is iA_alias=61 & iA { export iA; } # short immediate with flags set
 opA1: "0" is iA_alias>61 & iA { export iA; } # short immediate without flags set or long immediate flags?
+# NOTEL: No long immediate for opA1 because it is the destination register. Short immediate for opA1
+# 	 is used for setting flags only.
 
 opB1: iB is iB_alias<61 & iB { export iB; } # normal register operand
 opB1: iD is iB=61 & iD { export *[const]:$(SIZE) iD; } # short immediate with flags set
@@ -122,13 +120,12 @@ LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63
 
 
 # TODO: jADDR table to correctly display jump target addresses
-#ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[const]:$(SIZE) reloc; }
 ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
 # Computes address of one instruction before the last instruction named the loop instruction
 # to restrict loop branching p-code to only the final instruction in the loop.
 # This avoids Ghidra complaining about unreachable blocks if end-of-loop testing
 # p-code is inserted into every instruction, which is how hardware does it.
-PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[const]:$(SIZE) reloc; }
+PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[ram]:$(SIZE) reloc; }
 
 PREV_opC1: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export res; } # normal register operand
 PREV_opC1: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate with flags set
@@ -288,11 +285,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 :sr opC1, "["^opB1^"]" is LOOP & (iI=0x2 & iA=0x10 & iD!=0x3) ... & opC1 ... & opB1 ... & iD ...
 {
-	# NOTE: 0x1300 base address below must match the base of the auxiliary
-	# 		register set in ARC4.sinc
-	# TODO: Eliminate hardcoding 0x1300?
-	#local addr = 0x1300 + ((opB1:2)&0x3F);
-	# *[register] (&:2 status + opB1:2)  = opC1;
 	*[register] (&:2 status + opB1:2)  = opC1;
 }
 
