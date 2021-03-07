@@ -182,6 +182,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 # p. 93 of ARC Ref
 # TODO: implement write-back and cache bypass and sign extend
+# NOTE: ld instruction family does not set status flags see p.100
 :ld opA1, "["^opB1, opC1^"]" is LOOP & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
 {
 	local addr = opB1 + opC1;
@@ -436,7 +437,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	local result = opA1;
 	resultflags(result);
 	addflags(opB1, opC1);
-	# logicflags();
 	build FLAGS;
 }
 
@@ -466,7 +466,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 & opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 # with mov : iI = 0xC
@@ -477,7 +477,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1; # & opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 # and reg, limm, limm
@@ -487,7 +487,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1; # & opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 # and dst_reg, src_reg, src_reg
@@ -497,7 +497,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1; # & opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 # and shimm, op1, op1
@@ -507,7 +507,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 & opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 :or^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xD ... & opA1 ... & opB1 & opC1
@@ -516,7 +516,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 | opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 :xor^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xF ... & opA1 ... & opB1 & opC1
@@ -525,7 +525,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 ^ opC1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 :asl^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & iB=iC ... & opA1 ... & opB1 & opC1
@@ -536,7 +536,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 << 1;
 	local result = opA1;
 	resultflags(result);
-	#build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 # TODO: implement correct semantics spec
@@ -548,7 +548,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 << 1;
 	local result = opA1;
 	resultflags(result);
-	# build FLAGSNZ;
+	build FLAGSNZ;
 }
 
 :nop^COND^FLAGS is LOOP & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
