@@ -119,7 +119,17 @@ LP_COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (cc) goto <skip>; g
 LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
 
-# TODO: jADDR table to correctly display jump target addresses
+# TODO: Try jumps with short immediate data which is not documented in the specification.
+
+# Doesn't work because table values (opB1) are not allowed in square brackets.
+# JADDR: reloc is opB1 [ reloc = (opB1 & 0xFFFFFF) << 2; ] { export *[ram]:4 reloc; }
+
+# JADDR: byte_addr is iB_alias<61 & iB { export iB; } # normal register operand
+# JADDR: byte_addr is iB=61 & iD { export *[const]:$(SIZE) iD; } # short immediate with flags set
+# JADDR: byte_addr is iB=63 & iD { export *[const]:$(SIZE) iD; } # short immediate without flags set
+JADDR: byte_addr is iB_alias=62 & iB_alias; limm32_field [ byte_addr = (limm32_field & 0xFFFFFF) <<2; ] { export *[ram]:4 byte_addr; } # long immediate
+
+
 ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
 # Computes address of one instruction before the last instruction named the loop instruction
 # to restrict loop branching p-code to only the final instruction in the loop.
@@ -366,10 +376,21 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	return [blink];
 }
 
-:j^COND^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=0) ... & opB1
+:j^COND^FLAGS JADDR is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=0) ... & opB1 & JADDR
 {
 	build COND;
-	addr = (opB1&0x0FFFFFFF)<<2;
+	tmpZ = opB1[31,1];
+	tmpN = opB1[30,1];
+	tmpC = opB1[29,1];
+	tmpV = opB1[28,1];
+	build FLAGS;
+	goto [JADDR];
+}
+
+:j^COND^dd^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB<61 & iB!=0x1F & iC=0) ... & opB1
+{
+	build COND;
+	addr = (opB1&0x0FFFFFF)<<2;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
 	tmpC = opB1[29,1];
@@ -378,23 +399,12 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	goto [addr];
 }
 
-:j^COND^dd^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB!=62 & iB!=0x1F & iC=0) ... & opB1
-{
-	build COND;
-	addr = (opB1&0x0FFFFFFF)<<2;
-	tmpZ = opB1[31,1];
-	tmpN = opB1[30,1];
-	tmpC = opB1[29,1];
-	tmpV = opB1[28,1];
-	build FLAGS;
-	goto [addr];
-}
-
+# TODO: implement correct jump address display
 #TODO: implement correct loading of flag bits into blink when flag bit is set
 :jl^COND^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=1) ... & opB1
 {
 	build COND;
-	addr = (opB1&0x0FFFFFFF)<<2;
+	addr = (opB1&0x0FFFFFF)<<2;
 	blink = inst_next;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
@@ -408,7 +418,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 :jl^COND^dd^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB!=62 & iC=1) ... & opB1
 {
 	build COND;
-	addr = (opB1&0x0FFFFFFF)<<2;
+	addr = (opB1&0x0FFFFFF)<<2;
 	blink = inst_next;
 	tmpZ = opB1[31,1];
 	tmpN = opB1[30,1];
