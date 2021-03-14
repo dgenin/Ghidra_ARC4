@@ -538,19 +538,47 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	build FLAGSNZ;
 }
 
-:asl^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & iB=iC ... & opA1 ... & opB1 & opC1
+# ROR p.119
+:ror^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & iI=0x3 ... & iB=iC ... & opA1 ... & opB1
 {
 	build COND;
-	local tmp = (opB1 & 0x80000000) >> 31;
+	local tmp = (opB1 & 0x1);
 	tmpC = tmp:1;
+	opA1 = (opB1 >> 1) | (tmp << 31);
+	local result = opA1;
+	resultflags(result);
+	tmpV = V;
+	build FLAGS;
+}
+
+# ROR multiple p.120
+:ror^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x13 ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = (opB1 >> opC1) | (opB1 << (32-opC1));
+	local result = opA1;
+	resultflags(result);
+	tmpV = V;
+	tmpC = C;
+	build FLAGS;
+}
+
+# ASL multiple p.84
+:asl^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA1 ... & opB1 & opC1
+{
+	build COND;
 	opA1 = opB1 << 1;
 	local result = opA1;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
-# TODO: implement correct semantics spec
-:lsl^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x11 ... & iB=iC ... & opA1 ... & opB1 & opC1
+
+# ASL p.83
+# NOTE: The specification has an _error_ where it claims that iI=0xC if there is no short immediate argumen.
+# 	This conflicts with the definition of ADD, which has the same op code and is also contradicted
+#	by the assembler.
+:asl^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & iI=0x8 ... & iB=iC ... & opA1 ... & opB1
 {
 	build COND;
 	local tmp = (opB1 & 0x80000000) >> 31;
@@ -558,7 +586,21 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 	opA1 = opB1 << 1;
 	local result = opA1;
 	resultflags(result);
-	build FLAGSNZ;
+	tmpV = (tmpN != N);
+	build FLAGS;
+}
+
+# TODO: implement correct semantics spec
+:lsl^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x11 ... & iB=iC ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	local tmp = (opB1 & 0x80000000) >> 31;
+	tmpC = tmp:1;
+	opA1 = opB1 << 1;
+	local result = opA1;
+	resultflags(result);
+	tmpV = V;
+	build FLAGS;
 }
 
 :nop^COND^FLAGS is LOOP & COND & FLAGS & iI=0xF & iA=63 & iB=63 & iC=63 & iD=0x1FF
