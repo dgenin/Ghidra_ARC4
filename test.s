@@ -1,4 +1,10 @@
 	.ORG 0x100
+	.include "branch.s"
+	nop
+	.include "jump.s"
+	nop
+	.include "ext.s"
+	nop
 	.include "loop.s"
 	nop
 	.include "sr.s"
