@@ -147,6 +147,11 @@ dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (De
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
 dd: ".jd" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
 
+# NOTE: This is used only for jl with long immediate address, which occupies
+# 	the delay slot. According to the ARC4 spec .jd nullify mode must be
+#	used (p. 97).
+jl_dd: ".jd" is iN=2 { }
+
 # p.36 ARC4 CPU manual
 # Adds end-of-loop p-code test to the last instruction in the loop,
 # which is the only instruction for which lp_in_use is 1.
@@ -198,7 +203,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + opC1;
 	result = *:4 addr;
-	#resultflags(result);
 	opA1 = result;
 }
 
@@ -206,7 +210,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + opC1;
 	result = *:1 addr;
-	#resultflags(result);
 	opA1 = zext(result);
 }
 
@@ -214,7 +217,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + opC1;
 	result = *:2 addr;
-	#resultflags(result);
 	opA1 = zext(result);
 }
 
@@ -222,7 +224,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + iD;
 	result = *:4 addr;
-	#resultflags(result);
 	opA1 = result;
 }
 
@@ -230,7 +231,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + iD;
 	result = *:1 addr;
-	#resultflags(result);
 	opA1 = zext(result);
 }
 
@@ -238,7 +238,6 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 {
 	local addr = opB1 + iD;
 	result = *:2 addr;
-	#resultflags(result);
 	opA1 = zext(result);
 }
 
@@ -303,22 +302,19 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 :st opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
 {
 	local addr = opB1 + iD;
-	*:4 addr = opC1;
-	resultflags(opC1);
+	*:4 addr = opC1:4;
 }
 
 :stb opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & iD ...
 {
 	local addr = opB1 + iD;
-	*:1 addr = opC1;
-	resultflags(opC1);
+	*:1 addr = opC1:1;
 }
 
 :stw opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & iD ...
 {
 	local addr = opB1 + iD;
-	*:2 addr = opC1;
-	resultflags(opC1);
+	*:2 addr = opC1:2;
 }
 
 #TODO: specification seems to be missing description of the size field
@@ -406,7 +402,7 @@ FLAGSNZ: ""   is (iC=63 | iB=63) { }
 # 	is (apparently) correct (or at least less wrong).
 #TODO: implement correct loading of flag bits into blink when flag bit is set
 # iB==62 => long immediate
-:jl^COND^dd^FLAGS JADDR is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=1 & iN=2) ... & opB1 & JADDR
+:jl^COND^jl_dd^FLAGS JADDR is LOOP & COND ... & FLAGS ... & jl_dd ... & (iI=0x7 & iA=0 & iB=62 & iC=1) ... & opB1 & JADDR
 {
 	build COND;
 	tmpZ = opB1[31,1];
