@@ -197,61 +197,65 @@ FLAGSNZ: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 FLAGSNZ: ".f" is (iC<63 & iB<63) { N = tmpN; Z = tmpZ; }
 FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
-ADDRESS_WRITEBACK0: ".a" is iLD0_A=1 ... & opB1 & opC1 { opB1 = opB1 + opC1; }
-ADDRESS_WRITEBACK0: "" is iLD0_A=0 {}
-ADDRESS_WRITEBACK1: ".a" is iLD1_A=1 ... & opB1 & iD ... { opB1 = opB1 + iD; }
-ADDRESS_WRITEBACK1: "" is iLD1_A=0 {}
+ADDRESS_WRITEBACK_LD0: ".a" is iLD0_A=1 ... & opB1 & opC1 { opB1 = opB1 + opC1; }
+ADDRESS_WRITEBACK_LD0: "" is iLD0_A=0 {}
+ADDRESS_WRITEBACK_LD1: ".a" is iLD1_A=1 ... & opB1 & iD ... { opB1 = opB1 + iD; }
+ADDRESS_WRITEBACK_LD1: "" is iLD1_A=0 {}
+ADDRESS_WRITEBACK_ST0: ".a" is iST_A=1 ... & opB1 & iD ... { opB1 = opB1 + iD; }
+ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
+
+
 # p. 93 of ARC Ref
-# TODO: implement write-back and cache bypass and sign extend
+# TODO: implement cache bypass and sign extend
 # NOTE: ld instruction family does not set status flags see p.100
 # LD instructions below use
 
-:ld^ADDRESS_WRITEBACK0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK0 & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
+:ld^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
 {
 	local addr = opB1 + opC1;
 	result = *:4 addr;
 	opA1 = result;
-	build ADDRESS_WRITEBACK0;
+	build ADDRESS_WRITEBACK_LD0;
 }
 
-:ldb^ADDRESS_WRITEBACK0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK0 & (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
+:ldb^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
 {
 	local addr = opB1 + opC1;
 	result = *:1 addr;
 	opA1 = zext(result);
-	build ADDRESS_WRITEBACK0;
+	build ADDRESS_WRITEBACK_LD0;
 }
 
-:ldw^ADDRESS_WRITEBACK0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK0 & (iI=0x0 & iLD1_Z=0x2 & iLD1_R=0x0)  ... & opA1 ... & opB1 & opC1 ...
+:ldw^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x2 & iLD1_R=0x0)  ... & opA1 ... & opB1 & opC1 ...
 {
 	local addr = opB1 + opC1;
 	result = *:2 addr;
 	opA1 = zext(result);
-	build ADDRESS_WRITEBACK0;
+	build ADDRESS_WRITEBACK_LD0;
 }
 # LD instructions below use short immediate addressing, e.g., ld r1,[r2,4]
-:ld^ADDRESS_WRITEBACK1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK1 & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
+:ld^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:4 addr;
 	opA1 = result;
-	build ADDRESS_WRITEBACK1;
+	build ADDRESS_WRITEBACK_LD1;
 }
 
-:ldb^ADDRESS_WRITEBACK1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK1 & (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
+:ldb^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:1 addr;
 	opA1 = zext(result);
-	build ADDRESS_WRITEBACK1;
+	build ADDRESS_WRITEBACK_LD1;
 }
 
-:ldw^ADDRESS_WRITEBACK1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK1 & (iI=0x1 & iLD0_Z=0x2 & iLD0_R=0)  ... & opA1 ... & opB1 & iD ...
+:ldw^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x2 & iLD0_R=0)  ... & opA1 ... & opB1 & iD ...
 {
 	local addr = opB1 + iD;
 	result = *:2 addr;
 	opA1 = zext(result);
-	build ADDRESS_WRITEBACK1;
+	build ADDRESS_WRITEBACK_LD1;
 }
 
 :lr opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iC=0x10) ... & opA1 ... & opB1 & iD ...
@@ -312,22 +316,25 @@ ADDRESS_WRITEBACK1: "" is iLD1_A=0 {}
 	*[register] (&:2 status + opB1:2)  = opC1;
 }
 
-:st opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
+:st^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
 {
 	local addr = opB1 + iD;
 	*:4 addr = opC1:4;
+	build ADDRESS_WRITEBACK_ST0;
 }
 
-:stb opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & iD ...
+:stb^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & iD ...
 {
 	local addr = opB1 + iD;
 	*:1 addr = opC1:1;
+	build ADDRESS_WRITEBACK_ST0;
 }
 
-:stw opC1, "["^opB1, iD^"]" is LOOP & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & iD ...
+:stw^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & iD ...
 {
 	local addr = opB1 + iD;
 	*:2 addr = opC1:2;
+	build ADDRESS_WRITEBACK_ST0;
 }
 
 #TODO: specification seems to be missing description of the size field
