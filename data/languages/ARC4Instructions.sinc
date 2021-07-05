@@ -114,6 +114,10 @@ COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; 
 # Always execute
 COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
+B_COND: cc is cc { if (!cc) goto inst_next; }
+
+# TODO: Should this be conditioned on iB and iC? LP instruction probably doesn't use the corresponding
+# 	bit ranges as registers.
 LP_COND: cc is cc & (iQ=0 & iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 LP_COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (cc) goto <skip>; goto [lp_addr]; <skip> }
 # Always execute
@@ -346,16 +350,16 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	resultflags(opA1);
 }
 
-:b^COND^dd ADDR is LOOP & (iI=0x4) & COND & dd & ADDR
+:b^B_COND^dd ADDR is LOOP & (iI=0x4) & B_COND & dd & ADDR
 {
-	build COND;
+	build B_COND;
 	build ADDR;
 	goto ADDR;
 }
 
-:bl^COND^dd ADDR is LOOP & (iI=0x5) & COND & dd & ADDR
+:bl^B_COND^dd ADDR is LOOP & (iI=0x5) & B_COND & dd & ADDR
 {
-	build COND;
+	build B_COND;
 	build ADDR;
 	blink = inst_next;
 	call ADDR;
