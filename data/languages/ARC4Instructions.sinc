@@ -148,9 +148,9 @@ PREV_opC1: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) re
 PREV_opC1: res is iC=63 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate without flags set
 PREV_opC1: res is iC=62; limm32_field [ res = (limm32_field<<2) - 4; ]{ export *[const]:$(SIZE) res; } # long immediate
 
-dd: ".nd" is iN=0 { } # TODO: Only execute next instruction when not jumping (Default)
+dd: ".nd" is iN=0 { } # Only execute next instruction when not jumping (Default)
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
-dd: ".jd" is iN=2 { delayslot(1); } # TODO: Only execute next instruction when jumping
+dd: ".jd" is (iN=2)&cc { if (!cc) goto <skip>; delayslot(1); <skip> } # Only execute next instruction when jumping (see p.88)
 
 # NOTE: This is used only for jl with long immediate address, which occupies
 # 	the delay slot. According to the ARC4 spec .jd nullify mode must be

@@ -1,6 +1,7 @@
 mov r0, 0
 mov r1, 1
 
+# NOTE: Nested delay slot fails to disassemble in Ghidra but is permitted by the assembler (actual results TBD).
 add r0,r1,r0
 b.d foo
 b.d foo
@@ -9,8 +10,10 @@ foo: sub r0,r1,r0      ; executed twice?
 add r0,r1,r0
 j blink
 
-
-
+sub.f 0,r1,r2
+bnz.jd bar
+sub r0,r0,r0
+bar:
 
 
 # inst 1 j.d r0
