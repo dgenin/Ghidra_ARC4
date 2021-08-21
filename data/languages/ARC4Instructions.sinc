@@ -341,13 +341,84 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	build ADDRESS_WRITEBACK_ST0;
 }
 
-#TODO: specification seems to be missing description of the size field
-#TODO: Implement W vs. B version by constraining iC per datasheet p.123
-#      and also sex instruction.
-:ext opA1, opB1 is LOOP & (iI=0x3) ... & opA1 ... & opB1 ... & opC1 ...
+:extw^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=8) ... & opA1 ... & opB1 ...
 {
-	opA1 = zext(opB1:2); #zero extending word, see TODO above
+	build COND;
+	opA1 = zext(opB1:2);
 	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+:extb^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=7) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	opA1 = zext(opB1:1);
+	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+:sexw^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=6) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	opA1 = sext(opB1:2);
+	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+:sexb^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=5) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	opA1 = sext(opB1:1);
+	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+:rrc^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=4) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	tmpC = opB1[0,1];
+	tmpV = V;
+	opA1 = (opB1>>1)|(zext(C)<<31);
+	resultflags(opA1);
+	build FLAGS;
+}
+
+:ror^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=3) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	tmpC = opB1[0,1];
+	tmpV = V;
+	opA1 = (opB1>>1)|(zext(tmpC)<<31);
+	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+:lsr^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=2) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	tmpC = opB1[0,1];
+	tmpV = V;
+	opA1 = opB1>>1;
+	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+:asr^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=1) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	tmpC = opB1[0,1];
+	tmpV = V;
+	opA1 = (opB1>>1)|(opB1&0x80000000);
+	resultflags(opA1);
+	build FLAGSNZ;
+}
+
+# TODO: implement according to p.93 ARC4 reference manual
+:flag^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=0) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	resultflags(opA1);
+	build FLAGSNZ;
 }
 
 :b^B_COND^dd ADDR is LOOP & (iI=0x4) & B_COND & dd & ADDR
