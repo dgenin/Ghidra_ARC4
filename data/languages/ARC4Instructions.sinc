@@ -413,12 +413,35 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	build FLAGSNZ;
 }
 
-# TODO: implement according to p.93 ARC4 reference manual
-:flag^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=0) ... & opA1 ... & opB1 ...
+# TODO: implement E1,E2 & H flags according to p.93 ARC4 reference manual (maybe)
+# NOTE: what's the p-code for halt?
+# NOTE: For proper operation, the set flags field should be set to “not set flags”, i.e. bit 8
+#		The FLAG macro semantics is exactly backwards, i.e., flags will not be set if the .f bit is
+#		clear. For this reason the flags need to be set directly.
+#		What does happen if the .f flag is set?
+# should be clear, or r63 used for the short-immediate indicator.
+:flag^COND opB1 is LOOP & COND ... & (iI=0x3&iA=0x3D&iC=0) ... & opA1 ... & opB1 ...
 {
 	build COND;
-	resultflags(opA1);
-	build FLAGSNZ;
+	Z = opB1[6,1];
+	N = opB1[5,1];
+	C = opB1[4,1];
+	V = opB1[3,1];
+	# E2 = opB[2,1];
+	# E1 = opB[1,1];
+	# H = opB[0,1];
+}
+
+:flag_but_A_field_is_wrong^COND opB1 is LOOP & COND ... & (iI=0x3&iA!=0x3D&iC=0) ... & opA1 ... & opB1 ...
+{
+	build COND;
+	Z = opB1[6,1];
+	N = opB1[5,1];
+	C = opB1[4,1];
+	V = opB1[3,1];
+	# E2 = opB[2,1];
+	# E1 = opB[1,1];
+	# H = opB[0,1];
 }
 
 :b^B_COND^dd ADDR is LOOP & (iI=0x4) & B_COND & dd & ADDR
@@ -632,21 +655,21 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	build FLAGSNZ;
 }
 
-# ROR p.119
-:ror^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & iI=0x3 ... & iB=iC ... & opA1 ... & opB1
-{
-	build COND;
-	local tmp = (opB1 & 0x1);
-	tmpC = tmp:1;
-	opA1 = (opB1 >> 1) | (tmp << 31);
-	local result = opA1;
-	resultflags(result);
-	tmpV = V;
-	build FLAGS;
-}
+# # ROR p.119
+# :ror^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=3) ... & opA1 ... & opB1
+# {
+# 	build COND;
+# 	local tmp = (opB1 & 0x1);
+# 	tmpC = tmp:1;
+# 	opA1 = (opB1 >> 1) | (tmp << 31);
+# 	local result = opA1;
+# 	resultflags(result);
+# 	tmpV = V;
+# 	build FLAGS;
+# }
 
 # ROR multiple p.120
-:ror^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x13 ... & opA1 ... & opB1 & opC1
+:rorm^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x13 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = (opB1 >> opC1) | (opB1 << (32-opC1));
@@ -658,7 +681,7 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 }
 
 # ASL multiple p.84
-:asl^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA1 ... & opB1 & opC1
+:aslm^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA1 ... & opB1 & opC1
 {
 	build COND;
 	opA1 = opB1 << 1;
@@ -669,7 +692,7 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 
 
 # ASL p.83
-# NOTE: The specification has an _error_ where it claims that iI=0xC if there is no short immediate argumen.
+# NOTE: The specification has an _error_ where it claims that iI=0xC if there is no short immediate argument.
 # 	This conflicts with the definition of ADD, which has the same op code and is also contradicted
 #	by the assembler.
 :asl^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & iI=0x8 ... & iB=iC ... & opA1 ... & opB1
