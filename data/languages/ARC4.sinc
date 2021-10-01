@@ -17,11 +17,11 @@ define register offset=0x1000 size=$(SIZE) [
        ilink1 ilink2 blink pc
 
        ext0  ext1  ext2  ext3  ext4  ext5  ext6  ext7  ext8  ext9  ext10 ext11 ext12 ext13 ext14
-       ext15 ext16 ext17 ext18 ext19 ext20 ext21 ext22 ext23 ext24 ext25 ext26 ext27 lp_count
+       ext15 ext16 ext17 ext18 ext19 ext20 ext21 ext22 ext23 ext24 MLO MMID MHI lp_count
        shimmflags limm shimmnoflags
 
 # TODO: are sp, fp, pc aliases for one of r0-r28?
-# r32-r59 reserved, lp_count is r60
+# r32-r59 reserved, lp_count is r60, MLO, MMID and MHI are only valid if the CPU has a 32x32 multiply extension.
 ];
 
 # STATUS REGISTER MAP: (LOW)

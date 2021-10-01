@@ -1,5 +1,5 @@
 	ld r0, [r1, 1]
-	;; ld r0, [5,4] to (sic) many shimms in load		
+	;; ld r0, [5,4] to (sic) many shimms in load
 	ld r0, [5,5]
 	ld r0, [5]
 	ld r0, [r3]
@@ -15,4 +15,5 @@
 	ldb.x  r0, [r1]
 	.WORD 0x081f000e	; ld r0, [0x1234, 0xe]
 	.WORD 0x1234 		; supported by objdump but not as
-	
+	.WORD 0x0f126339
+

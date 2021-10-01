@@ -43,7 +43,7 @@ attach variables [ iA iB iC ] [
        r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 fp sp
        ilink1 ilink2 blink
        ext0  ext1  ext2  ext3  ext4  ext5  ext6  ext7  ext8  ext9  ext10 ext11 ext12 ext13 ext14
-       ext15 ext16 ext17 ext18 ext19 ext20 ext21 ext22 ext23 ext24 ext25 ext26 ext27 lp_count
+       ext15 ext16 ext17 ext18 ext19 ext20 ext21 ext22 ext23 ext24 MLO MMID MHI lp_count
        shimmflags limm shimmnoflags
 ];
 
@@ -268,6 +268,14 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	reg_val = *[register] addr;
 	opA1 = reg_val;
 }
+
+:lr_but_reserved_bits_not_zero opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iLD0_R=0x1 & iC!=0x10) ... & opA1 ... & opB1 & iD ...
+{
+	local addr = &:2 status + opB1:2;
+	reg_val = *[register] addr;
+	opA1 = reg_val;
+}
+
 
 # lp_end = 3
 # NOTE: Zero-overhead loop setup with explicit stores to auxiliary registers cannot
@@ -646,6 +654,15 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	build FLAGSNZ;
 }
 
+:bic^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xE ... & opA1 ... & opB1 & opC1
+{
+	build COND;
+	opA1 = opB1 & (~opC1);
+	local result = opA1;
+	resultflags(result);
+	build FLAGSNZ;
+}
+
 :xor^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xF ... & opA1 ... & opB1 & opC1
 {
 	build COND;
@@ -685,13 +702,14 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 {
 	build COND;
 	opA1 = opB1 << 1;
+	# TODO: Result is redundant. Pass opA1 directly to resultflags throughout.
 	local result = opA1;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
 
-# ASL p.83
+# ASL p.8	3
 # NOTE: The specification has an _error_ where it claims that iI=0xC if there is no short immediate argument.
 # 	This conflicts with the definition of ADD, which has the same op code and is also contradicted
 #	by the assembler.
@@ -707,16 +725,25 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	build FLAGS;
 }
 
-# TODO: implement correct semantics spec
-:lsl^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x11 ... & iB=iC ... & opA1 ... & opB1 & opC1
+:lsr^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x11 ... &  opA1 ... & opB1 & opC1
 {
 	build COND;
-	local tmp = (opB1 & 0x80000000) >> 31;
-	tmpC = tmp:1;
-	opA1 = opB1 << 1;
-	local result = opA1;
-	resultflags(result);
-	tmpV = V;
+	opA1 = opB1 >> opC1;
+	resultflags(opA1);
+	build FLAGS;
+}
+
+
+# TODO: implement correct semantics spec
+:asr^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x12 ...  & opA1 ... & opB1 & opC1
+{
+	build COND;
+	local tmp = ((opB1 & 0x80000000) >> 31);
+	if (tmp[0,1]) goto <skip>;
+	tmp = 0xFFFFFFFF << (32 - opC1);
+<skip>
+	opA1 = (opB1 >> opC1) | tmp;
+	resultflags(opA1);
 	build FLAGS;
 }
 
@@ -724,6 +751,35 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 {
 }
 
+# TODO: implement signed mul64
+# idea: convert to unsigned, use unsigned multiplication on 31 bit unsigned operands,
+#		compute the correct sign for the product by xor-ing the sign bits of the operands,
+#		if it's negative convert the result to two's complement.
+:mul64^COND opB1, opC1 is LOOP & COND ... & iI=0x14 ... & iA=0x3F ... & opB1 & opC1
+{
+	build COND;
+	local tmp_b:12 = 0;
+	tmp_b[0,31] = opB1;
+	local tmp_c:12 = 0;
+	tmp_c[0,31] = opC1;
+	local res:12 = tmp_b * tmp_c;
+	MLO = res[0,31];
+	MMID = res[32,31];
+	MHI = res[64,31];
+}
+
+:mulu64^COND opB1, opC1 is LOOP & COND ... & iI=0x15 ... & iA=0x3F ... & opB1 & opC1
+{
+	build COND;
+	local tmp_b:12 = 0;
+	tmp_b[0,31] = opB1;
+	local tmp_c:12 = 0;
+	tmp_c[0,31] = opC1;
+	local res:12 = tmp_b * tmp_c;
+	MLO = res[0,31];
+	MMID = res[32,31];
+	MHI = res[64,31];
+}
 
 # Nested delay slots at 0x00c0b5bc. Not quite identical to the code below but
 # likely same issue.
