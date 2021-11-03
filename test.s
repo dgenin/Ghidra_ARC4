@@ -9,6 +9,8 @@
 	nop
 	.include "sr.s"
 	nop
+	.include "st.s"
+	nop
 	.include "ld.s"
 	nop
 	.include "ret.s"

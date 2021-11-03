@@ -59,6 +59,19 @@ attach variables [ iSR_D iSR_B ] [
 	aux62 aux63
 ];
 
+# Short immediate arguments are sign extended to 32 bits. Ghidra sext()
+# requires byte aligned data but short immediate arguments are 9 bits long.
+# The work around is to sext(x)=(x<<23)s>>23. The combination of logical
+# left shift and signed arithmetic right shift is equivalent to sext on
+# the 9 bit short immediate value.
+#
+# The disassembly action section computes the 32 bit sign-extended operand
+# value. The variables in this section are arbitrary precision signed ones
+# complement. The expression in square brackets computes the correct signed
+# value by extracting the sign bit and effectively implementing
+# <sign bit> ? -iD : iD using arithmetic.
+opD: val is iD [ val = ((iD&0x100)>>8)*(0x1fe-iD)+(1-((iD&0x100)>>8))*iD; ] { local tmp:4 = ((iD<<23)s>>23); export tmp; }
+
 # p.61 of ARC Ref. regs 61-63 reserved for encoding immediate data
 
 # 61 - Short immediate data indicator setting
@@ -74,8 +87,8 @@ opA1: "0" is iA_alias>61 & iA { export iA; } # short immediate without flags set
 # 	 is used for setting flags only.
 
 opB1: iB is iB_alias<61 & iB { export iB; } # normal register operand
-opB1: iD is iB=61 & iD { export *[const]:$(SIZE) iD; } # short immediate with flags set
-opB1: iD is iB=63 & iD { export *[const]:$(SIZE) iD; } # short immediate without flags set
+opB1: opD is iB=61 & opD { local tmp:4 = opD; export tmp; } # short immediate with flags set
+opB1: opD is iB=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
 opB1: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
 # TODO: SR instruction with implicit register specification, e.g.,
@@ -88,8 +101,8 @@ opSR_B1: iSR_D is iSR_B=63 & iSR_D { export iSR_D; } # short immediate without f
 opSR_B1: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
 opC1: iC is iC_alias<61 & iC { export iC; } # normal register operand
-opC1: iD is iC=61 & iD { export *[const]:$(SIZE) iD; } # short immediate with flags set
-opC1: iD is iC=63 & iD { export *[const]:$(SIZE) iD; } # short immediate without flags set
+opC1: opD is iC=61 & opD { local tmp:4 = opD; export tmp; } # short immediate with flags set
+opC1: opD is iC=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
 opC1: limm32_field is iC=62; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
 cc: "" is iQ=0 { export 1:1; } #not displaying anything for always-execute
@@ -126,10 +139,6 @@ LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63
 
 # TODO: Try jumps with short immediate data which is not documented in the specification.
 # 	Doesn't seem to be possible to force assembler to produce a jump with a short immediate
-
-# Doesn't work because table values (opB1) are not allowed in square brackets.
-# JADDR: reloc is opB1 [ reloc = (opB1 & 0xFFFFFF) << 2; ] { export *[ram]:4 reloc; }
-
 # JADDR: byte_addr is iB_alias<61 & iB { export iB; } # normal register operand
 # JADDR: byte_addr is iB=61 & iD { export *[const]:$(SIZE) iD; } # short immediate with flags set
 # JADDR: byte_addr is iB=63 & iD { export *[const]:$(SIZE) iD; } # short immediate without flags set
@@ -201,13 +210,13 @@ FLAGSNZ: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 FLAGSNZ: ".f" is (iC<63 & iB<63) { N = tmpN; Z = tmpZ; }
 FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
-ADDRESS_WRITEBACK_LD0: ".a" is iLD0_A=1 ... & opB1 & opC1 { opB1 = opB1 + opC1; }
-ADDRESS_WRITEBACK_LD0: "" is iLD0_A=0 {}
-ADDRESS_WRITEBACK_LD1: ".a" is iLD1_A=1 ... & opB1 & iD ... { opB1 = opB1 + iD; }
-ADDRESS_WRITEBACK_LD1: "" is iLD1_A=0 {}
-ADDRESS_WRITEBACK_ST0: ".a" is iST_A=1 ... & opB1 & iD ... { opB1 = opB1 + iD; }
-ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 
+ADDRESS_WRITEBACK_LD0: ".a" is iLD0_A=1 ... & opB1 & opC1 { opB1 = opB1 + opC1; export opB1; }
+ADDRESS_WRITEBACK_LD0: "" is   iLD0_A=0 ... & opB1 & opC1 { local tmp = opB1 + opC1; export tmp; }
+ADDRESS_WRITEBACK_LD1: ".a" is iLD1_A=1 ... & opB1 & opD ... { opB1 = opB1 + opD; export opB1; }
+ADDRESS_WRITEBACK_LD1: "" is   iLD1_A=0 ... & opB1 & opD ... { local tmp = opB1 + opD; export tmp; }
+ADDRESS_WRITEBACK_ST0: ".a" is iST_A=1 ... & opB1 & opD ... { opB1 = opB1 + opD; export opB1; }
+ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 + opD; export tmp; }
 
 # p. 93 of ARC Ref
 # TODO: implement cache bypass and sign extend
@@ -216,53 +225,39 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 
 :ld^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
 {
-	local addr = opB1 + opC1;
-	result = *:4 addr;
-	opA1 = result;
-	build ADDRESS_WRITEBACK_LD0;
+	opA1 = *:4 ADDRESS_WRITEBACK_LD0;
 }
 
 :ldb^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
 {
-	local addr = opB1 + opC1;
-	result = *:1 addr;
-	opA1 = zext(result);
-	build ADDRESS_WRITEBACK_LD0;
+	local tmp = *:1 ADDRESS_WRITEBACK_LD0;
+	opA1 = zext(tmp);
 }
 
 :ldw^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x2 & iLD1_R=0x0)  ... & opA1 ... & opB1 & opC1 ...
 {
-	local addr = opB1 + opC1;
-	result = *:2 addr;
-	opA1 = zext(result);
-	build ADDRESS_WRITEBACK_LD0;
+	local tmp = *:2 ADDRESS_WRITEBACK_LD0;
+	opA1 = zext(tmp);
 }
 # LD instructions below use short immediate addressing, e.g., ld r1,[r2,4]
-:ld^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
+:ld^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & opD ...
 {
-	local addr = opB1 + iD;
-	result = *:4 addr;
-	opA1 = result;
-	build ADDRESS_WRITEBACK_LD1;
+	opA1 = *:4 ADDRESS_WRITEBACK_LD1;
 }
 
-:ldb^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & iD ...
+:ldb^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & opD ...
 {
-	local addr = opB1 + iD;
-	result = *:1 addr;
-	opA1 = zext(result);
-	build ADDRESS_WRITEBACK_LD1;
+	local tmp = *:1 ADDRESS_WRITEBACK_LD1;
+	opA1 = zext(tmp);
 }
 
-:ldw^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x2 & iLD0_R=0)  ... & opA1 ... & opB1 & iD ...
+:ldw^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x2 & iLD0_R=0)  ... & opA1 ... & opB1 & opD ...
 {
-	local addr = opB1 + iD;
-	result = *:2 addr;
-	opA1 = zext(result);
-	build ADDRESS_WRITEBACK_LD1;
+	local tmp = *:2 ADDRESS_WRITEBACK_LD1;
+	opA1 = zext(tmp);
 }
 
-:lr opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iC=0x10) ... & opA1 ... & opB1 & iD ...
+:lr opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iC=0x10) ... & opA1 ... & opB1
 {
 	local addr = &:2 status + opB1:2;
 	reg_val = *[register] addr;
@@ -328,25 +323,19 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	*[register] (&:2 status + opB1:2)  = opC1;
 }
 
-:st^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & iD ...
+:st^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & opD ...
 {
-	local addr = opB1 + iD;
-	*:4 addr = opC1:4;
-	build ADDRESS_WRITEBACK_ST0;
+	*:4 ADDRESS_WRITEBACK_ST0 = opC1:4;
 }
 
-:stb^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & iD ...
+:stb^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & opD ...
 {
-	local addr = opB1 + iD;
-	*:1 addr = opC1:1;
-	build ADDRESS_WRITEBACK_ST0;
+	*:1 ADDRESS_WRITEBACK_ST0 = opC1:1;
 }
 
-:stw^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, iD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & iD ...
+:stw^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & opD ...
 {
-	local addr = opB1 + iD;
-	*:2 addr = opC1:2;
-	build ADDRESS_WRITEBACK_ST0;
+	*:2 ADDRESS_WRITEBACK_ST0 = opC1:2;
 }
 
 :extw^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=8) ... & opA1 ... & opB1 ...
@@ -411,14 +400,14 @@ ADDRESS_WRITEBACK_ST0: "" is iST_A=0 {}
 	build FLAGSNZ;
 }
 
-:asr^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=1) ... & opA1 ... & opB1 ...
+:asr^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=1) ... & opA1 ... & opB1 ...
 {
 	build COND;
 	tmpC = opB1[0,1];
 	tmpV = V;
 	opA1 = (opB1>>1)|(opB1&0x80000000);
 	resultflags(opA1);
-	build FLAGSNZ;
+	build FLAGS;
 }
 
 # TODO: implement E1,E2 & H flags according to p.93 ARC4 reference manual (maybe)

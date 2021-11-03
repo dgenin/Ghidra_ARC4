@@ -9,6 +9,7 @@
 	;; ld r0, [0x0fffffff, 0x12] ld operand error
 	;; ld.a r0, [5] write-back not permitted
 	ld.a r0, [r1,5]
+	ld.a r0, [r1,-1]
 	ld.a r0, [r1,r2]
 	ld.x r0, [r1]
 	ldw.x  r0, [r1]
