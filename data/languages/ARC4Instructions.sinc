@@ -80,30 +80,30 @@ opD: val is iD [ val = ((iD&0x100)>>8)*(0x1fe-iD)+(1-((iD&0x100)>>8))*iD; ] { lo
 # 63 - Short immediate data indicator not setting
 #      flags
 
-opA1: iA is iA_alias<61 & iA { export iA; } # normal register operand
-opA1: "0" is iA_alias=61 & iA { export iA; } # short immediate with flags set
-opA1: "0" is iA_alias>61 & iA { export iA; } # short immediate without flags set or long immediate flags?
-# NOTEL: No long immediate for opA1 because it is the destination register. Short immediate for opA1
+opA: iA is iA_alias<61 & iA { export iA; } # normal register operand
+opA: "0" is iA_alias=61 & iA { export iA; } # short immediate with flags set
+opA: "0" is iA_alias>61 & iA { export iA; } # short immediate without flags set or long immediate flags?
+# NOTEL: No long immediate for opA because it is the destination register. Short immediate for opA
 # 	 is used for setting flags only.
 
-opB1: iB is iB_alias<61 & iB { export iB; } # normal register operand
-opB1: opD is iB=61 & opD { local tmp:4 = opD; export tmp; } # short immediate with flags set
-opB1: opD is iB=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
-opB1: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
+opB: iB is iB_alias<61 & iB { export iB; } # normal register operand
+opB: opD is iB=61 & opD { local tmp:4 = opD; export tmp; } # short immediate with flags set
+opB: opD is iB=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
+opB: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
 # TODO: SR instruction with implicit register specification, e.g.,
 #		sr r1, [r2]
 #		results in decompiler code with a RAM memory write, e.g.,
 #		*(int **)((uVar1 & 0x3f) + 0x1300) = piParm2;
-opSR_B1: iSR_B is iB_alias<61 & iSR_B { export iSR_B; } # normal register operand
-opSR_B1: iSR_D is iSR_B=61 & iSR_D { export iSR_D; } # short immediate with flags set
-opSR_B1: iSR_D is iSR_B=63 & iSR_D { export iSR_D; } # short immediate without flags set
-opSR_B1: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
+opSR_B: iSR_B is iB_alias<61 & iSR_B { export iSR_B; } # normal register operand
+opSR_B: iSR_D is iSR_B=61 & iSR_D { export iSR_D; } # short immediate with flags set
+opSR_B: iSR_D is iSR_B=63 & iSR_D { export iSR_D; } # short immediate without flags set
+opSR_B: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
-opC1: iC is iC_alias<61 & iC { export iC; } # normal register operand
-opC1: opD is iC=61 & opD { local tmp:4 = opD; export tmp; } # short immediate with flags set
-opC1: opD is iC=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
-opC1: limm32_field is iC=62; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
+opC: iC is iC_alias<61 & iC { export iC; } # normal register operand
+opC: opD is iC=61 & opD { local tmp:4 = opD; export tmp; } # short immediate with flags set
+opC: opD is iC=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
+opC: limm32_field is iC=62; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
 cc: "" is iQ=0 { export 1:1; } #not displaying anything for always-execute
 cc: ".eq" is iQ=1 { export Z; }
@@ -152,10 +152,10 @@ ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc;
 # p-code is inserted into every instruction, which is how hardware does it.
 PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[ram]:$(SIZE) reloc; }
 
-PREV_opC1: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export res; } # normal register operand
-PREV_opC1: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate with flags set
-PREV_opC1: res is iC=63 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate without flags set
-PREV_opC1: res is iC=62; limm32_field [ res = (limm32_field<<2) - 4; ]{ export *[const]:$(SIZE) res; } # long immediate
+PREV_opC: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export res; } # normal register operand
+PREV_opC: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate with flags set
+PREV_opC: res is iC=63 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate without flags set
+PREV_opC: res is iC=62; limm32_field [ res = (limm32_field<<2) - 4; ]{ export *[const]:$(SIZE) res; } # long immediate
 
 dd: ".nd" is iN=0 { } # Only execute next instruction when not jumping (Default)
 dd: ".d"  is iN=1 { delayslot(1); } # Always execute next instruction
@@ -211,64 +211,64 @@ FLAGSNZ: ".f" is (iC<63 & iB<63) { N = tmpN; Z = tmpZ; }
 FLAGSNZ: ""   is (iC=63 | iB=63) { }
 
 
-ADDRESS_WRITEBACK_LD0: ".a" is iLD0_A=1 ... & opB1 & opC1 { opB1 = opB1 + opC1; export opB1; }
-ADDRESS_WRITEBACK_LD0: "" is   iLD0_A=0 ... & opB1 & opC1 { local tmp = opB1 + opC1; export tmp; }
-ADDRESS_WRITEBACK_LD1: ".a" is iLD1_A=1 ... & opB1 & opD ... { opB1 = opB1 + opD; export opB1; }
-ADDRESS_WRITEBACK_LD1: "" is   iLD1_A=0 ... & opB1 & opD ... { local tmp = opB1 + opD; export tmp; }
-ADDRESS_WRITEBACK_ST0: ".a" is iST_A=1 ... & opB1 & opD ... { opB1 = opB1 + opD; export opB1; }
-ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 + opD; export tmp; }
+ADDRESS_WRITEBACK_LD0: ".a" is iLD0_A=1 ... & opB & opC { opB = opB + opC; export opB; }
+ADDRESS_WRITEBACK_LD0: "" is   iLD0_A=0 ... & opB & opC { local tmp = opB + opC; export tmp; }
+ADDRESS_WRITEBACK_LD1: ".a" is iLD1_A=1 ... & opB & opD ... { opB = opB + opD; export opB; }
+ADDRESS_WRITEBACK_LD1: "" is   iLD1_A=0 ... & opB & opD ... { local tmp = opB + opD; export tmp; }
+ADDRESS_WRITEBACK_ST0: ".a" is iST_A=1 ... & opB & opD ... { opB = opB + opD; export opB; }
+ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + opD; export tmp; }
 
 # p. 93 of ARC Ref
 # TODO: implement cache bypass and sign extend
 # NOTE: ld instruction family does not set status flags see p.100
 # LD instructions below use
 
-:ld^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
+:ld^ADDRESS_WRITEBACK_LD0 opA, "["^opB, opC^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x0 & iLD1_R=0x0) ... & opA ... & opB & opC ...
 {
-	opA1 = *:4 ADDRESS_WRITEBACK_LD0;
+	opA = *:4 ADDRESS_WRITEBACK_LD0;
 }
 
-:ldb^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA1 ... & opB1 & opC1 ...
+:ldb^ADDRESS_WRITEBACK_LD0 opA, "["^opB, opC^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x1 & iLD1_R=0x0) ... & opA ... & opB & opC ...
 {
 	local tmp = *:1 ADDRESS_WRITEBACK_LD0;
-	opA1 = zext(tmp);
+	opA = zext(tmp);
 }
 
-:ldw^ADDRESS_WRITEBACK_LD0 opA1, "["^opB1, opC1^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x2 & iLD1_R=0x0)  ... & opA1 ... & opB1 & opC1 ...
+:ldw^ADDRESS_WRITEBACK_LD0 opA, "["^opB, opC^"]" is LOOP & ADDRESS_WRITEBACK_LD0 & (iI=0x0 & iLD1_Z=0x2 & iLD1_R=0x0)  ... & opA ... & opB & opC ...
 {
 	local tmp = *:2 ADDRESS_WRITEBACK_LD0;
-	opA1 = zext(tmp);
+	opA = zext(tmp);
 }
 # LD instructions below use short immediate addressing, e.g., ld r1,[r2,4]
-:ld^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA1 ... & opB1 & opD ...
+:ld^ADDRESS_WRITEBACK_LD1 opA, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x0 & iLD0_R=0) ... & opA ... & opB & opD ...
 {
-	opA1 = *:4 ADDRESS_WRITEBACK_LD1;
+	opA = *:4 ADDRESS_WRITEBACK_LD1;
 }
 
-:ldb^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA1 ... & opB1 & opD ...
+:ldb^ADDRESS_WRITEBACK_LD1 opA, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x1 & iLD0_R=0) ... & opA ... & opB & opD ...
 {
 	local tmp = *:1 ADDRESS_WRITEBACK_LD1;
-	opA1 = zext(tmp);
+	opA = zext(tmp);
 }
 
-:ldw^ADDRESS_WRITEBACK_LD1 opA1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x2 & iLD0_R=0)  ... & opA1 ... & opB1 & opD ...
+:ldw^ADDRESS_WRITEBACK_LD1 opA, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_LD1 & (iI=0x1 & iLD0_Z=0x2 & iLD0_R=0)  ... & opA ... & opB & opD ...
 {
 	local tmp = *:2 ADDRESS_WRITEBACK_LD1;
-	opA1 = zext(tmp);
+	opA = zext(tmp);
 }
 
-:lr opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iC=0x10) ... & opA1 ... & opB1
+:lr opA, "["^opB^"]" is LOOP & (iI=0x1 & iC=0x10) ... & opA ... & opB
 {
-	local addr = &:2 status + opB1:2;
+	local addr = &:2 status + opB:2;
 	reg_val = *[register] addr;
-	opA1 = reg_val;
+	opA = reg_val;
 }
 
-:lr_but_reserved_bits_not_zero opA1, "["^opB1^"]" is LOOP & (iI=0x1 & iLD0_R=0x1 & iC!=0x10) ... & opA1 ... & opB1 & iD ...
+:lr_but_reserved_bits_not_zero opA, "["^opB^"]" is LOOP & (iI=0x1 & iLD0_R=0x1 & iC!=0x10) ... & opA ... & opB & iD ...
 {
-	local addr = &:2 status + opB1:2;
+	local addr = &:2 status + opB:2;
 	reg_val = *[register] addr;
-	opA1 = reg_val;
+	opA = reg_val;
 }
 
 
@@ -292,10 +292,10 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 #	assembled into an instruction using a short immediate and a long immediate,
 #	instead the two immediates are ORed into the short immediate field. Brilliant!
 #
-# NOTE: opC1 is not allowed in square brackets so we need to make
+# NOTE: opC is not allowed in square brackets so we need to make
 #		equivalents of ADDR and PREV_ADDR to get the right values in to
 #		square brackets.
-:sr opC1, "["^opB1^"]" is PREV_opC1 & LOOP & (iI=0x2 & iA=0x10 & (iB=61 | iB=63) & iD=0x3) ... & opC1 ... & opB1 ... & iD ...
+:sr opC, "["^opB^"]" is PREV_opC & LOOP & (iI=0x2 & iA=0x10 & (iB=61 | iB=63) & iD=0x3) ... & opC ... & opB ... & iD ...
 [
 	# Set lp_in_use context variable for the last
 	# instrution at the end of the loop so that
@@ -310,103 +310,103 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 	#		is not known at decompile time and lp_in_use ends up being set
 	#		everywhere.
 	lp_in_use=1;
-	globalset(PREV_opC1, lp_in_use);
+	globalset(PREV_opC, lp_in_use);
 	lp_in_use=0;
-	globalset(opC1, lp_in_use);
+	globalset(opC, lp_in_use);
 ]
 {
-	lp_end = opC1<<2;
+	lp_end = opC<<2;
 }
 
-:sr opC1, "["^opB1^"]" is LOOP & (iI=0x2 & iA=0x10 & iD!=0x3) ... & opC1 ... & opB1 ... & iD ...
+:sr opC, "["^opB^"]" is LOOP & (iI=0x2 & iA=0x10 & iD!=0x3) ... & opC ... & opB ... & iD ...
 {
-	*[register] (&:2 status + opB1:2)  = opC1;
+	*[register] (&:2 status + opB:2)  = opC;
 }
 
-:st^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB1 ... & opC1 & opD ...
+:st^ADDRESS_WRITEBACK_ST0 opC, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x0 & iST_0=0) ... & opB ... & opC & opD ...
 {
-	*:4 ADDRESS_WRITEBACK_ST0 = opC1:4;
+	*:4 ADDRESS_WRITEBACK_ST0 = opC:4;
 }
 
-:stb^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB1 ... & opC1 & opD ...
+:stb^ADDRESS_WRITEBACK_ST0 opC, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2  & iST_Z=0x1 & iST_0=0)... & opB ... & opC & opD ...
 {
-	*:1 ADDRESS_WRITEBACK_ST0 = opC1:1;
+	*:1 ADDRESS_WRITEBACK_ST0 = opC:1;
 }
 
-:stw^ADDRESS_WRITEBACK_ST0 opC1, "["^opB1, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB1 ... & opC1 & opD ...
+:stw^ADDRESS_WRITEBACK_ST0 opC, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB ... & opC & opD ...
 {
-	*:2 ADDRESS_WRITEBACK_ST0 = opC1:2;
+	*:2 ADDRESS_WRITEBACK_ST0 = opC:2;
 }
 
-:extw^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=8) ... & opA1 ... & opB1 ...
+:extw^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=8) ... & opA ... & opB ...
 {
 	build COND;
-	opA1 = zext(opB1:2);
-	resultflags(opA1);
+	opA = zext(opB:2);
+	resultflags(opA);
 	build FLAGSNZ;
 }
 
-:extb^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=7) ... & opA1 ... & opB1 ...
+:extb^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=7) ... & opA ... & opB ...
 {
 	build COND;
-	opA1 = zext(opB1:1);
-	resultflags(opA1);
+	opA = zext(opB:1);
+	resultflags(opA);
 	build FLAGSNZ;
 }
 
-:sexw^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=6) ... & opA1 ... & opB1 ...
+:sexw^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=6) ... & opA ... & opB ...
 {
 	build COND;
-	opA1 = sext(opB1:2);
-	resultflags(opA1);
+	opA = sext(opB:2);
+	resultflags(opA);
 	build FLAGSNZ;
 }
 
-:sexb^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=5) ... & opA1 ... & opB1 ...
+:sexb^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=5) ... & opA ... & opB ...
 {
 	build COND;
-	opA1 = sext(opB1:1);
-	resultflags(opA1);
+	opA = sext(opB:1);
+	resultflags(opA);
 	build FLAGSNZ;
 }
 
-:rrc^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=4) ... & opA1 ... & opB1 ...
+:rrc^COND^FLAGS opA, opB is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=4) ... & opA ... & opB ...
 {
 	build COND;
-	tmpC = opB1[0,1];
+	tmpC = opB[0,1];
 	tmpV = V;
-	opA1 = (opB1>>1)|(zext(C)<<31);
-	resultflags(opA1);
+	opA = (opB>>1)|(zext(C)<<31);
+	resultflags(opA);
 	build FLAGS;
 }
 
-:ror^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=3) ... & opA1 ... & opB1 ...
+:ror^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=3) ... & opA ... & opB ...
 {
 	build COND;
-	tmpC = opB1[0,1];
+	tmpC = opB[0,1];
 	tmpV = V;
-	opA1 = (opB1>>1)|(zext(tmpC)<<31);
-	resultflags(opA1);
+	opA = (opB>>1)|(zext(tmpC)<<31);
+	resultflags(opA);
 	build FLAGSNZ;
 }
 
-:lsr^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=2) ... & opA1 ... & opB1 ...
+:lsr^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=2) ... & opA ... & opB ...
 {
 	build COND;
-	tmpC = opB1[0,1];
+	tmpC = opB[0,1];
 	tmpV = V;
-	opA1 = opB1>>1;
-	resultflags(opA1);
+	opA = opB>>1;
+	resultflags(opA);
 	build FLAGSNZ;
 }
 
-:asr^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=1) ... & opA1 ... & opB1 ...
+:asr^COND^FLAGS opA, opB is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=1) ... & opA ... & opB ...
 {
 	build COND;
-	tmpC = opB1[0,1];
+	tmpC = opB[0,1];
 	tmpV = V;
-	opA1 = (opB1>>1)|(opB1&0x80000000);
-	resultflags(opA1);
+	opA = (opB>>1)|(opB&0x80000000);
+	resultflags(opA);
 	build FLAGS;
 }
 
@@ -417,25 +417,25 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 #		clear. For this reason the flags need to be set directly.
 #		What does happen if the .f flag is set?
 # should be clear, or r63 used for the short-immediate indicator.
-:flag^COND opB1 is LOOP & COND ... & (iI=0x3&iA=0x3D&iC=0) ... & opA1 ... & opB1 ...
+:flag^COND opB is LOOP & COND ... & (iI=0x3&iA=0x3D&iC=0) ... & opA ... & opB ...
 {
 	build COND;
-	Z = opB1[6,1];
-	N = opB1[5,1];
-	C = opB1[4,1];
-	V = opB1[3,1];
+	Z = opB[6,1];
+	N = opB[5,1];
+	C = opB[4,1];
+	V = opB[3,1];
 	# E2 = opB[2,1];
 	# E1 = opB[1,1];
 	# H = opB[0,1];
 }
 
-:flag_but_A_field_is_wrong^COND opB1 is LOOP & COND ... & (iI=0x3&iA!=0x3D&iC=0) ... & opA1 ... & opB1 ...
+:flag_but_A_field_is_wrong^COND opB is LOOP & COND ... & (iI=0x3&iA!=0x3D&iC=0) ... & opA ... & opB ...
 {
 	build COND;
-	Z = opB1[6,1];
-	N = opB1[5,1];
-	C = opB1[4,1];
-	V = opB1[3,1];
+	Z = opB[6,1];
+	N = opB[5,1];
+	C = opB[4,1];
+	V = opB[3,1];
 	# E2 = opB[2,1];
 	# E1 = opB[1,1];
 	# H = opB[0,1];
@@ -478,206 +478,206 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 }
 
 # Special case for j blink
-:j^COND^dd^FLAGS opB1 is LOOP & (COND & dd & FLAGS & iI=0x7 & iA=0 & iB=0x1F & iC=0) ... & opB1
+:j^COND^dd^FLAGS opB is LOOP & (COND & dd & FLAGS & iI=0x7 & iA=0 & iB=0x1F & iC=0) ... & opB
 {
 	build COND;
-	tmpZ = opB1[31,1];
-	tmpN = opB1[30,1];
-	tmpC = opB1[29,1];
-	tmpV = opB1[28,1];
+	tmpZ = opB[31,1];
+	tmpN = opB[30,1];
+	tmpC = opB[29,1];
+	tmpV = opB[28,1];
 	# TODO: not handling setting of E1 & E2 in the status register
 	# 		see p. 95 of ARC Ref
 	build FLAGS;
 	return [blink];
 }
 
-:j^COND^dd^FLAGS JADDR is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=0) ... & opB1 & JADDR
+:j^COND^dd^FLAGS JADDR is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB=62 & iC=0) ... & opB & JADDR
 {
 	build COND;
-	tmpZ = opB1[31,1];
-	tmpN = opB1[30,1];
-	tmpC = opB1[29,1];
-	tmpV = opB1[28,1];
+	tmpZ = opB[31,1];
+	tmpN = opB[30,1];
+	tmpC = opB[29,1];
+	tmpV = opB[28,1];
 	build FLAGS;
 	goto JADDR;
 }
 
-:j^COND^dd^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB<61 & iB!=0x1F & iC=0) ... & opB1
+:j^COND^dd^FLAGS opB is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB<61 & iB!=0x1F & iC=0) ... & opB
 {
 	build COND;
-	local addr = (opB1&0x0FFFFFF)<<2;
-	tmpZ = opB1[31,1];
-	tmpN = opB1[30,1];
-	tmpC = opB1[29,1];
-	tmpV = opB1[28,1];
+	local addr = (opB&0x0FFFFFF)<<2;
+	tmpZ = opB[31,1];
+	tmpN = opB[30,1];
+	tmpC = opB[29,1];
+	tmpV = opB[28,1];
 	build FLAGS;
 	goto [addr];
 }
 
 # iB==62 => long immediate
-:jl^COND^jl_dd^FLAGS JADDR is LOOP & COND ... & FLAGS ... & jl_dd ... & (iI=0x7 & iA=0 & iB=62 & iC=1) ... & opB1 & JADDR
+:jl^COND^jl_dd^FLAGS JADDR is LOOP & COND ... & FLAGS ... & jl_dd ... & (iI=0x7 & iA=0 & iB=62 & iC=1) ... & opB & JADDR
 {
 	build COND;
-	tmpZ = opB1[31,1];
-	tmpN = opB1[30,1];
-	tmpC = opB1[29,1];
-	tmpV = opB1[28,1];
+	tmpZ = opB[31,1];
+	tmpN = opB[30,1];
+	tmpC = opB[29,1];
+	tmpV = opB[28,1];
 	build FLAGS;
 	blink = inst_next;
 	call JADDR;
 }
 
-:jl^COND^dd^FLAGS opB1 is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB<61 & iC=1) ... & opB1
+:jl^COND^dd^FLAGS opB is LOOP & COND ... & FLAGS ... & dd ... & (iI=0x7 & iA=0 & iB<61 & iC=1) ... & opB
 {
 	build COND;
-	local addr = (opB1&0x0FFFFFF)<<2;
-	tmpZ = opB1[31,1];
-	tmpN = opB1[30,1];
-	tmpC = opB1[29,1];
-	tmpV = opB1[28,1];
+	local addr = (opB&0x0FFFFFF)<<2;
+	tmpZ = opB[31,1];
+	tmpN = opB[30,1];
+	tmpC = opB[29,1];
+	tmpV = opB[28,1];
 	build FLAGS;
 	blink = inst_next;
 	call [addr];
 }
 
-:add^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x8 ... & opA1 ... & opB1 & opC1
+:add^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0x8 ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 + opC1;
-	local result = opA1;
+	opA = opB + opC;
+	local result = opA;
 	resultflags(result);
-	addflags(opB1, opC1);
+	addflags(opB, opC);
 	# logicflags();
 	build FLAGS;
 	build LOOP;
 }
 
-:adc^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x9 ... & opA1 ... & opB1 & opC1
+:adc^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0x9 ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 + opC1 + zext(C);
-	local result = opA1;
+	opA = opB + opC + zext(C);
+	local result = opA;
 	resultflags(result);
-	addflags(opB1, opC1);
+	addflags(opB, opC);
 	build FLAGS;
 }
 
-:sub^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0xA ... & opA1 ... & opB1 & opC1
+:sub^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0xA ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 - opC1;
-	local result = opA1;
+	opA = opB - opC;
+	local result = opA;
 	resultflags(result);
-	subflags(opB1, opC1);
+	subflags(opB, opC);
 	build FLAGS;
 }
 
-:sbc^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0xB ... & opA1 ... & opB1 & opC1
+:sbc^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0xB ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 - opC1 - zext(C);
-	local result = opA1;
+	opA = opB - opC - zext(C);
+	local result = opA;
 	resultflags(result);
-	subflags(opB1, opC1);
+	subflags(opB, opC);
 	build FLAGS;
 }
 
-:and^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xC ... & opA1 ... & opB1 & opC1
+:and^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0xC ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 & opC1;
-	local result = opA1;
+	opA = opB & opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
 # with mov : iI = 0xC
 # and reg, shimm, shimm
-:mov^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & (iB=61 | iB=63) & (iC=61 | iC=63)) ... & opA1 ... & opB1 & opC1
+:mov^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & (iB=61 | iB=63) & (iC=61 | iC=63)) ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1; # & opC1;
-	local result = opA1;
+	opA = opB; # & opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
 # and reg, limm, limm
-:mov^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iB=62 & iC=62) ... & opA1 ... & opB1 & opC1
+:mov^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iB=62 & iC=62) ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1; # & opC1;
-	local result = opA1;
+	opA = opB; # & opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
 # and dst_reg, src_reg, src_reg
-:mov^COND^FLAGSNZ opA1, opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1& opC1
+:mov^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iB=iC & iB<61 & iC<61) ... & opA ... & opB& opC
 {
 	build COND;
-	opA1 = opB1; # & opC1;
-	local result = opA1;
+	opA = opB; # & opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
 # and shimm, op1, op1
-:tst^COND^FLAGSNZ opB1 is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iA=63 & iB=iC & iB<61 & iC<61) ... & opA1 ... & opB1 & opC1
+:tst^COND^FLAGSNZ opB is LOOP & COND ... & FLAGSNZ ... & (iI=0xC & iA=63 & iB=iC & iB<61 & iC<61) ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 & opC1;
-	local result = opA1;
+	opA = opB & opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
-:or^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xD ... & opA1 ... & opB1 & opC1
+:or^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0xD ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 | opC1;
-	local result = opA1;
+	opA = opB | opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
-:bic^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xE ... & opA1 ... & opB1 & opC1
+:bic^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0xE ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 & (~opC1);
-	local result = opA1;
+	opA = opB & (~opC);
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
-:xor^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0xF ... & opA1 ... & opB1 & opC1
+:xor^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0xF ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 ^ opC1;
-	local result = opA1;
+	opA = opB ^ opC;
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
 
 # # ROR p.119
-# :ror^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=3) ... & opA1 ... & opB1
+# :ror^COND^FLAGS opA, opB is LOOP & COND ... & FLAGS ... & (iI=0x3&iC=3) ... & opA ... & opB
 # {
 # 	build COND;
-# 	local tmp = (opB1 & 0x1);
+# 	local tmp = (opB & 0x1);
 # 	tmpC = tmp:1;
-# 	opA1 = (opB1 >> 1) | (tmp << 31);
-# 	local result = opA1;
+# 	opA = (opB >> 1) | (tmp << 31);
+# 	local result = opA;
 # 	resultflags(result);
 # 	tmpV = V;
 # 	build FLAGS;
 # }
 
 # ROR multiple p.120
-:rorm^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x13 ... & opA1 ... & opB1 & opC1
+:rorm^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0x13 ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = (opB1 >> opC1) | (opB1 << (32-opC1));
-	local result = opA1;
+	opA = (opB >> opC) | (opB << (32-opC));
+	local result = opA;
 	resultflags(result);
 	tmpV = V;
 	tmpC = C;
@@ -685,12 +685,12 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 }
 
 # ASL multiple p.84
-:aslm^COND^FLAGSNZ opA1, opB1, opC1 is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA1 ... & opB1 & opC1
+:aslm^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 << 1;
-	# TODO: Result is redundant. Pass opA1 directly to resultflags throughout.
-	local result = opA1;
+	opA = opB << 1;
+	# TODO: Result is redundant. Pass opA directly to resultflags throughout.
+	local result = opA;
 	resultflags(result);
 	build FLAGSNZ;
 }
@@ -700,37 +700,37 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 # NOTE: The specification has an _error_ where it claims that iI=0xC if there is no short immediate argument.
 # 	This conflicts with the definition of ADD, which has the same op code and is also contradicted
 #	by the assembler.
-:asl^COND^FLAGS opA1, opB1 is LOOP & COND ... & FLAGS ... & iI=0x8 ... & iB=iC ... & opA1 ... & opB1
+:asl^COND^FLAGS opA, opB is LOOP & COND ... & FLAGS ... & iI=0x8 ... & iB=iC ... & opA ... & opB
 {
 	build COND;
-	local tmp = (opB1 & 0x80000000) >> 31;
+	local tmp = (opB & 0x80000000) >> 31;
 	tmpC = tmp:1;
-	opA1 = opB1 << 1;
-	local result = opA1;
+	opA = opB << 1;
+	local result = opA;
 	resultflags(result);
 	tmpV = (tmpN != N);
 	build FLAGS;
 }
 
-:lsr^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x11 ... &  opA1 ... & opB1 & opC1
+:lsr^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0x11 ... &  opA ... & opB & opC
 {
 	build COND;
-	opA1 = opB1 >> opC1;
-	resultflags(opA1);
+	opA = opB >> opC;
+	resultflags(opA);
 	build FLAGS;
 }
 
 
 # TODO: implement correct semantics spec
-:asr^COND^FLAGS opA1, opB1, opC1 is LOOP & COND ... & FLAGS ... & iI=0x12 ...  & opA1 ... & opB1 & opC1
+:asr^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0x12 ...  & opA ... & opB & opC
 {
 	build COND;
-	local tmp = ((opB1 & 0x80000000) >> 31);
+	local tmp = ((opB & 0x80000000) >> 31);
 	if (tmp[0,1]) goto <skip>;
-	tmp = 0xFFFFFFFF << (32 - opC1);
+	tmp = 0xFFFFFFFF << (32 - opC);
 <skip>
-	opA1 = (opB1 >> opC1) | tmp;
-	resultflags(opA1);
+	opA = (opB >> opC) | tmp;
+	resultflags(opA);
 	build FLAGS;
 }
 
@@ -742,26 +742,26 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB1 & opD ... { local tmp = opB1 +
 # idea: convert to unsigned, use unsigned multiplication on 31 bit unsigned operands,
 #		compute the correct sign for the product by xor-ing the sign bits of the operands,
 #		if it's negative convert the result to two's complement.
-:mul64^COND opB1, opC1 is LOOP & COND ... & iI=0x14 ... & iA=0x3F ... & opB1 & opC1
+:mul64^COND opB, opC is LOOP & COND ... & iI=0x14 ... & iA=0x3F ... & opB & opC
 {
 	build COND;
 	local tmp_b:12 = 0;
-	tmp_b[0,31] = opB1;
+	tmp_b[0,31] = opB;
 	local tmp_c:12 = 0;
-	tmp_c[0,31] = opC1;
+	tmp_c[0,31] = opC;
 	local res:12 = tmp_b * tmp_c;
 	MLO = res[0,31];
 	MMID = res[32,31];
 	MHI = res[64,31];
 }
 
-:mulu64^COND opB1, opC1 is LOOP & COND ... & iI=0x15 ... & iA=0x3F ... & opB1 & opC1
+:mulu64^COND opB, opC is LOOP & COND ... & iI=0x15 ... & iA=0x3F ... & opB & opC
 {
 	build COND;
 	local tmp_b:12 = 0;
-	tmp_b[0,31] = opB1;
+	tmp_b[0,31] = opB;
 	local tmp_c:12 = 0;
-	tmp_c[0,31] = opC1;
+	tmp_c[0,31] = opC;
 	local res:12 = tmp_b * tmp_c;
 	MLO = res[0,31];
 	MMID = res[32,31];
