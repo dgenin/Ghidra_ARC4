@@ -60,5 +60,5 @@ define register offset=0x1500 size=8 [
 
 define context lp_status
        lp_in_use = (0,0)
-       tmp1_1 = (32,63)
+#       tmp1_1 = (32,63)
        ;

@@ -7,8 +7,9 @@
     sr 45,[r2]
     sr 450000,[r2]
     sr r2, [lp_end]
+    sr r2, [4]
+    sr r2, [5]
+    sr r2, [7]
 
-
-	
     lr r0, [r2]
     j.nd blink

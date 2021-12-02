@@ -52,10 +52,9 @@ attach variables [ iSR_D iSR_B ] [
 	aux6 aux7 aux8 aux9 aux10 aux11 aux12 aux13 aux14 aux15
 	aux16 aux17 aux18 aux19 aux20 aux21 aux22 aux23 aux24 aux25
 	aux26 aux27 aux28 aux29 aux30 aux31
-	aux32 aux33 aux34 aux35
-	aux36 aux37 aux38 aux39 aux40 aux41 aux42 aux43 aux44 aux45
-	aux46 aux47 aux48 aux49 aux50 aux51 aux52 aux53 aux54 aux55
-	aux56 aux57 aux58 aux59 aux60 aux61
+	aux32 aux33 aux34 aux35 aux36 aux37 aux38 aux39 aux40 aux41
+	aux42 aux43 aux44 aux45 aux46 aux47 aux48 aux49 aux50 aux51
+	aux52 aux53 aux54 aux55 aux56 aux57 aux58 aux59 aux60 aux61
 	aux62 aux63
 ];
 
@@ -70,7 +69,7 @@ attach variables [ iSR_D iSR_B ] [
 # complement. The expression in square brackets computes the correct signed
 # value by extracting the sign bit and effectively implementing
 # <sign bit> ? -iD : iD using arithmetic.
-opD: val is iD [ val = ((iD&0x100)>>8)*(0x1fe-iD)+(1-((iD&0x100)>>8))*iD; ] { local tmp:4 = ((iD<<23)s>>23); export tmp; }
+opD: val is iD [ val = ((iD&0x100)>>8)*(iD-512)+(1-((iD&0x100)>>8))*iD; ] { local tmp:4 = ((iD<<23)s>>23); export tmp; }
 
 # p.61 of ARC Ref. regs 61-63 reserved for encoding immediate data
 
@@ -127,7 +126,10 @@ COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (!cc) goto inst_next; 
 # Always execute
 COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
 
-B_COND: cc is cc { if (!cc) goto inst_next; }
+B_COND: cc is cc & (iQ!=0) { if (!cc) goto inst_next; }
+# This avoids inserting a conditional branch in the case where
+# the jump is in fact unconditional.
+B_COND: cc is cc & (iQ=0) { }
 
 # TODO: Should this be conditioned on iB and iC? LP instruction probably doesn't use the corresponding
 # 	bit ranges as registers.
@@ -336,6 +338,16 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 :stw^ADDRESS_WRITEBACK_ST0 opC, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB ... & opC & opD ...
 {
 	*:2 ADDRESS_WRITEBACK_ST0 = opC:2;
+}
+
+:ext_unknown_instruction_2^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=10) ... & opA ... & opB ...
+{
+	build COND;
+}
+
+:ext_unknown_instruction_1^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=9) ... & opA ... & opB ...
+{
+	build COND;
 }
 
 :extw^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=8) ... & opA ... & opB ...
@@ -688,7 +700,7 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 :aslm^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA ... & opB & opC
 {
 	build COND;
-	opA = opB << 1;
+	opA = opB << opC;
 	# TODO: Result is redundant. Pass opA directly to resultflags throughout.
 	local result = opA;
 	resultflags(result);
