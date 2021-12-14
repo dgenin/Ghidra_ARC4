@@ -131,12 +131,11 @@ B_COND: cc is cc & (iQ!=0) { if (!cc) goto inst_next; }
 # the jump is in fact unconditional.
 B_COND: cc is cc & (iQ=0) { }
 
-# TODO: Should this be conditioned on iB and iC? LP instruction probably doesn't use the corresponding
-# 	bit ranges as registers.
-LP_COND: cc is cc & (iQ=0 & iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
-LP_COND: cc is cc & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { if (cc) goto <skip>; goto [lp_addr]; <skip> }
-# Always execute
-LP_COND: "" is ((iC > 60 & iC != 62) | (iB > 60 & iB != 62)) { } #(iC=61 | iC=63 | iB=61 | iB=63) { }
+# lp instruction does not use iA, iB, iC or iD fields but only iBL_L and iQ.
+# So, LP_COND does not need to check instruction mode (long vs short immediate, register)
+# the way COND does.
+LP_COND: ".al" is (iQ=0) { }
+LP_COND: cc is cc & (iQ!=0) { if (cc) goto <skip>; goto [lp_addr]; <skip> }
 
 
 # TODO: Try jumps with short immediate data which is not documented in the specification.
@@ -148,11 +147,12 @@ JADDR: byte_addr is iB_alias=62 & iB_alias; limm32_field [ byte_addr = (limm32_f
 
 
 ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[ram]:4 reloc; }
+LP_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[const]:$(SIZE) reloc; }
 # Computes address of one instruction before the last instruction named the loop instruction
 # to restrict loop branching p-code to only the final instruction in the loop.
 # This avoids Ghidra complaining about unreachable blocks if end-of-loop testing
 # p-code is inserted into every instruction, which is how hardware does it.
-PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[ram]:$(SIZE) reloc; }
+PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[const]:$(SIZE) reloc; }
 
 PREV_opC: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export res; } # normal register operand
 PREV_opC: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate with flags set
@@ -468,7 +468,7 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	call ADDR;
 }
 
-:lp^LP_COND^dd ADDR is PREV_ADDR & LOOP & (iI=0x6) & LP_COND & dd & ADDR
+:lp^LP_COND^dd LP_ADDR is PREV_ADDR & LOOP & (iI=0x6) & LP_COND & dd & LP_ADDR
 [
 	# Set lp_in_use context variable for the last
 	# instrution at the end of the loop so that
@@ -476,17 +476,23 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	# in that instruction.
 	# NOTE: if lp_end is overwritten while the
 	# loop is running there will be sadness:'(
+	# NOTE: Order of disassembly matters. If the last
+	# instruction in the loop is disassembled before
+	# lp instruction that sets up the loop, the
+	# lp_in_use context register will not be set
+	# when lp is finally disassembled, and the loop
+	# will magically disappear (poof).
 	lp_in_use=1;
 	globalset(PREV_ADDR, lp_in_use);
 	lp_in_use=0;
-	globalset(ADDR, lp_in_use);
+	globalset(LP_ADDR, lp_in_use);
 ]
 {
-	build ADDR;
-	lp_addr = ADDR;
+	build LP_ADDR;
+	lp_addr = LP_ADDR;
 	build LP_COND;
 	lp_start = inst_next;
-	lp_end = ADDR;
+	lp_end = LP_ADDR;
 }
 
 # Special case for j blink
