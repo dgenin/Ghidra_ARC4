@@ -69,7 +69,8 @@ attach variables [ iSR_D iSR_B ] [
 # complement. The expression in square brackets computes the correct signed
 # value by extracting the sign bit and effectively implementing
 # <sign bit> ? -iD : iD using arithmetic.
-opD: val is iD [ val = ((iD&0x100)>>8)*(iD-512)+(1-((iD&0x100)>>8))*iD; ] { local tmp:4 = ((iD<<23)s>>23); export tmp; }
+# opD: val is iD [ val = ((iD&0x100)>>8)*(iD-512)+(1-((iD&0x100)>>8))*iD; ] { local tmp:4 = ((iD<<23)s>>23); export tmp; }
+opD: val is iD [ val = ((iD&0x100)>>8)*(iD-512)+(1-((iD&0x100)>>8))*iD; ] { local tmp:4 = ((iD&0x100)>>8)*(iD-512)+(1-((iD&0x100)>>8))*iD; export tmp; }
 
 # p.61 of ARC Ref. regs 61-63 reserved for encoding immediate data
 
@@ -338,6 +339,11 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 :stw^ADDRESS_WRITEBACK_ST0 opC, "["^opB, opD^"]" is LOOP & ADDRESS_WRITEBACK_ST0 & (iI=0x2 & iST_Z=0x2 & iST_0=0) ... & opB ... & opC & opD ...
 {
 	*:2 ADDRESS_WRITEBACK_ST0 = opC:2;
+}
+
+:ext_unknown_instruction_3^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=0x3f) ... & opA ... & opB ...
+{
+	build COND;
 }
 
 :ext_unknown_instruction_2^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=10) ... & opA ... & opB ...
