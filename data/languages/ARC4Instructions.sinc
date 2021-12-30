@@ -346,12 +346,14 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	build COND;
 }
 
-:ext_unknown_instruction_2^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=10) ... & opA ... & opB ...
+# TODO: implement p-code
+:norm^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=10) ... & opA ... & opB ...
 {
 	build COND;
 }
 
-:ext_unknown_instruction_1^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=9) ... & opA ... & opB ...
+# TODO: implement p-code
+:swap^COND^FLAGSNZ opA, opB is LOOP & COND ... & FLAGSNZ ... & (iI=0x3&iC=9) ... & opA ... & opB ...
 {
 	build COND;
 }
