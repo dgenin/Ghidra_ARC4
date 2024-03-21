@@ -1,3 +1,6 @@
+# Copyright 2023 The Johns Hopkins University Applied Physics Laboratory LLC
+# Authors: Dan Genin and Tommy Johnson
+
 # Main slaspec must define endianess and alignment
 
 @ifndef WORDSIZE
@@ -20,7 +23,6 @@ define register offset=0x1000 size=$(SIZE) [
        ext15 ext16 ext17 ext18 ext19 ext20 ext21 ext22 ext23 ext24 MLO MMID MHI lp_count
        shimmflags limm shimmnoflags
 
-# TODO: are sp, fp, pc aliases for one of r0-r28?
 # r32-r59 reserved, lp_count is r60, MLO, MMID and MHI are only valid if the CPU has a 32x32 multiply extension.
 ];
 
@@ -54,7 +56,7 @@ define register offset=0x1500 size=8 [
 ];
 
 # NOTE: it appears that only one context register is allowed(?), so
-#       we are making them longer to accomodate address variables
+#       we are making them longer to accommodate address variables
 #       needed for computation in the action section of sr instruction
 #       to support manual loop initialization.
 

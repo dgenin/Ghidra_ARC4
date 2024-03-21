@@ -1,3 +1,6 @@
+; Copyright 2023 The Johns Hopkins University Applied Physics Laboratory LLC
+; Authors: Dan Genin and Tommy Johnson
+
 	add r2, 0, 0
 	add r3, 1, 1
 	add r4, 2, 2

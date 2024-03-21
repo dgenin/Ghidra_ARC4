@@ -1,3 +1,6 @@
+; Copyright 2023 The Johns Hopkins University Applied Physics Laboratory LLC
+; Authors: Dan Genin and Tommy Johnson
+
 	ld r0, [r1, 1]
 	;; ld r0, [5,4] to (sic) many shimms in load
 	ld r0, [5,5]

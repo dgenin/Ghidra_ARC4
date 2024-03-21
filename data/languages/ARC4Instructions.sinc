@@ -1,3 +1,6 @@
+# Copyright 2023 The Johns Hopkins University Applied Physics Laboratory LLC
+# Authors: Dan Genin and Tommy Johnson
+
 define token instr(32)
 	iI    = (27, 31) # opcode
 	iA    = (21, 26) # destination reg
@@ -91,10 +94,11 @@ opB: opD is iB=61 & opD { local tmp:4 = opD; export tmp; } # short immediate wit
 opB: opD is iB=63 & opD { local tmp:4 = opD; export tmp; } # short immediate without flags set
 opB: limm32_field is iB_alias=62 & iB_alias; limm32_field { export *[const]:$(SIZE) limm32_field; } # long immediate
 
-# TODO: SR instruction with implicit register specification, e.g.,
-#		sr r1, [r2]
-#		results in decompiler code with a RAM memory write, e.g.,
-#		*(int **)((uVar1 & 0x3f) + 0x1300) = piParm2;
+# SR instruction with implicit register specification, e.g.,
+# sr r1, [r2]
+# results in decompiler code with a RAM memory write, e.g.,
+# *(int **)((uVar1 & 0x3f) + 0x1300) = piParm2;
+# See discussion on SR for zero-overhead loop instruction below.
 opSR_B: iSR_B is iB_alias<61 & iSR_B { export iSR_B; } # normal register operand
 opSR_B: iSR_D is iSR_B=61 & iSR_D { export iSR_D; } # short immediate with flags set
 opSR_B: iSR_D is iSR_B=63 & iSR_D { export iSR_D; } # short immediate without flags set
@@ -155,7 +159,7 @@ LP_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L); ] { export *[const]:$(S
 # p-code is inserted into every instruction, which is how hardware does it.
 PREV_ADDR: reloc is iBL_L [ reloc = inst_next + (4*iBL_L) - 4; ] { export *[const]:$(SIZE) reloc; }
 
-PREV_opC: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export res; } # normal register operand
+PREV_opC: res is iC_alias<61 & iC [ res = (iC<<2) - 4; ] { export *[const]:$SIZE res; } # normal register operand
 PREV_opC: res is iC=61 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate with flags set
 PREV_opC: res is iC=63 & iD [ res = (iD<<2) - 4; ] { export *[const]:$(SIZE) res; } # short immediate without flags set
 PREV_opC: res is iC=62; limm32_field [ res = (limm32_field<<2) - 4; ]{ export *[const]:$(SIZE) res; } # long immediate
@@ -208,7 +212,7 @@ FLAGS: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 FLAGS: ".f" is (iC<63 & iB<63) { C = tmpC; Z = tmpZ; N = tmpN; V = tmpV; }
 FLAGS: ""   is (iC=63 | iB=63) { }
 
-FLAGSNZ: ".f" is iF=1 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { N = tmpN; Z = tmpZ; }
+FLAGSNZ: ".f" is iF=1 & (iC!=opC61 & iC!=63 & iB!=61 & iB!=63) { N = tmpN; Z = tmpZ; }
 FLAGSNZ: ""   is iF=0 & (iC!=61 & iC!=63 & iB!=61 & iB!=63) { }
 FLAGSNZ: ".f" is (iC<63 & iB<63) { N = tmpN; Z = tmpZ; }
 FLAGSNZ: ""   is (iC=63 | iB=63) { }
@@ -309,9 +313,9 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	# lp_in_use=1;
 	# globalset(inst_next, lp_in_use);
 	# lp_in_use=0;
-	# TODO: This still results in unreachable branches because register value
-	#		is not known at decompile time and lp_in_use ends up being set
-	#		everywhere.
+	# This still results in unreachable branches because register value
+	# is not known at decompile time and lp_in_use ends up being set
+	# everywhere (see discussion on SR for zero-overhead loop).
 	lp_in_use=1;
 	globalset(PREV_opC, lp_in_use);
 	lp_in_use=0;
@@ -430,13 +434,9 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	build FLAGS;
 }
 
-# TODO: implement E1,E2 & H flags according to p.93 ARC4 reference manual (maybe)
-# NOTE: what's the p-code for halt?
-# NOTE: For proper operation, the set flags field should be set to “not set flags”, i.e. bit 8
-#		The FLAG macro semantics is exactly backwards, i.e., flags will not be set if the .f bit is
-#		clear. For this reason the flags need to be set directly.
-#		What does happen if the .f flag is set?
-# should be clear, or r63 used for the short-immediate indicator.
+# NOTE: Effect of setting interrupt flag bits E1 (1), E2 (2) and the halt bit H (0) is not implemented.
+# NOTE: Documentation specifies that the flag bit (8) must be cleared or the flag instruction will
+# not set the flags.
 :flag^COND opB is LOOP & COND ... & (iI=0x3&iA=0x3D&iC=0) ... & opA ... & opB ...
 {
 	build COND;
@@ -476,7 +476,7 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	call ADDR;
 }
 
-:lp^LP_COND^dd LP_ADDR is PREV_ADDR & LOOP & (iI=0x6) & LP_COND & dd & LP_ADDR
+:lp^LP_COND^dd LP_ADDR PREV_ADDR is PREV_ADDR & LOOP & (iI=0x6) & LP_COND & dd & LP_ADDR
 [
 	# Set lp_in_use context variable for the last
 	# instrution at the end of the loop so that
@@ -511,8 +511,6 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	tmpN = opB[30,1];
 	tmpC = opB[29,1];
 	tmpV = opB[28,1];
-	# TODO: not handling setting of E1 & E2 in the status register
-	# 		see p. 95 of ARC Ref
 	build FLAGS;
 	return [blink];
 }
@@ -711,7 +709,7 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 }
 
 # ASL multiple p.84
-:aslm^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA ... & opB & opC
+:asl^COND^FLAGSNZ opA, opB, opC is LOOP & COND ... & FLAGSNZ ... & iI=0x10 ... & opA ... & opB & opC
 {
 	build COND;
 	opA = opB << opC;
@@ -746,8 +744,6 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	build FLAGS;
 }
 
-
-# TODO: implement correct semantics spec
 :asr^COND^FLAGS opA, opB, opC is LOOP & COND ... & FLAGS ... & iI=0x12 ...  & opA ... & opB & opC
 {
 	build COND;
@@ -765,7 +761,7 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 }
 
 # TODO: implement signed mul64
-# idea: convert to unsigned, use unsigned multiplication on 31 bit unsigned operands,
+# Idea: convert to unsigned, use unsigned multiplication on 31 bit unsigned operands,
 #		compute the correct sign for the product by xor-ing the sign bits of the operands,
 #		if it's negative convert the result to two's complement.
 :mul64^COND opB, opC is LOOP & COND ... & iI=0x14 ... & iA=0x3F ... & opB & opC
@@ -793,16 +789,3 @@ ADDRESS_WRITEBACK_ST0: "" is   iST_A=0 ... & opB & opD ... { local tmp = opB + o
 	MMID = res[32,31];
 	MHI = res[64,31];
 }
-
-# Nested delay slots at 0x00c0b5bc. Not quite identical to the code below but
-# likely same issue.
-
-# jl.jd xxxxxxx
-# _mov xxxxx
-
-# jl.z.jd xxxxxx   <---- horked here
-# mov xxxxxx
-
-
-# _jl.jd xxxxx
-# __ld xxxxx

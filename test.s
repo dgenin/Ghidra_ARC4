@@ -1,4 +1,9 @@
+; Copyright 2023 The Johns Hopkins University Applied Physics Laboratory LLC
+; Authors: Dan Genin and Tommy Johnson
+
 	.ORG 0x100
+	.include "add.s"
+	nop
 	.include "branch.s"
 	nop
 	.include "jump.s"
